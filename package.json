@@ -18,11 +18,10 @@
   "homepage": "https://github.com/geocamxyz/conductor-node#readme",
   "node-red": {
     "nodes": {
-      "conductor-node": "conductor-node.js"
+      "conductor-node": "bot.js"
     }
   },
   "dependencies": {
-    "node-fetch": "^3.3.0",
     "zeebe-node": "^8.1.2"
   }
 }
