@@ -83,14 +83,10 @@ module.exports = function (RED) {
       } else {
         this.status({
           fill: "yellow",
-          shape: "dot",
+          shape: "ring",
           text: `Not a ${hostname} task`,
         });
       }
-      // if it's there wait based on place in array
-      // then request jobs based on max and compute
-      const zbc = zeebeClient();
-      node.send(msg);
     });
   }
   RED.nodes.registerType("bot", bot);

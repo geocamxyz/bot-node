@@ -22,5 +22,44 @@
 </script>
 
 <script type="text/html" data-help-name="bot">
-    <p>A node that launches zeebe worker jobs based on the machines priorities and capabilities which are retrieved from project-manager</p>
+    <p>A node that handles a zeebe task.  Name the node with the task type and make sure the incoming payload is a response from:
+        https://manager.geocam.xyz/api/v1/bots/capabilities
+    </p>
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">array</span></dt>
+        <dd>An array of capabilities for this machine returned from a call to
+            https://manager.geocam.xyz/api/v1/bots/capabilities?hostname=[os.hostname] 
+            Properties from the capability that matches this node's name will be used to access tasks.
+        </dd>
+
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Standard output
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">object</span></dt>
+                <dd>the standard output of the command.</dd>
+
+                <dt>payload.job <span class="property-type">object</span></dt>
+                <dd>Information about the job.</dd>
+
+                <dt>payload.done(errorMessage) <span class="property-type">function</span></dt>
+                <dd>A function which completes the corresponding job, when called. 
+                    Should be used to to trigger a <code>complete-task</code> node.
+                    If the done function is called with an errorMessage the job will be failed.
+                </dd>
+            </dl>
+        </li>
+    </ol>
+
+    <h3>References</h3>
+    <ul>
+        <li>Camunda Cloud Docs: <a href="https://docs.camunda.io/docs/product-manuals/concepts/job-workers/">Job Workers</a></li>
+        <li>zeebe-node docs: <a href="https://www.npmjs.com/package/zeebe-node#job-workers">createWorker</a></li>
+    </ul>
+
 </script>
