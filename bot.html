@@ -1,13 +1,14 @@
 <script type="text/javascript">
     RED.nodes.registerType('bot',{
-        category: 'zeebe',
+        category: 'bots',
         color: '#C0DEED',
         defaults: {
-            name: {value:""}
+            name: {value:""},
+            zeebe: { required: true, type: 'zeebe' },
         },
         inputs:1,
         outputs:1,
-        icon: "file.png",
+        icon: "bot.png",
         label: function() {
             return this.name||"bot";
         }
@@ -18,6 +19,10 @@
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-zeebe"><i class="fa fa-server"></i> Zeebe Broker</label>
+        <input type="text" id="node-input-zeebe" placeholder="Zeebe Broker" />
     </div>
 </script>
 

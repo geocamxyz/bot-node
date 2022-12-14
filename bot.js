@@ -5,25 +5,14 @@ module.exports = function (RED) {
 
   function bot(config) {
     RED.nodes.createNode(this, config);
+
+    const zeebeConfig = RED.nodes.getNode(config.zeebe);
+    
     const node = this;
     const globals = node.context().global;
     const task = config.name;
     const hostname = os.hostname;
     const active = {};
-
-    const zeebeClient = function () {
-      let client = globals.get("zbc");
-      if (!client) {
-        globals.set("availableCompute", 1);
-        client = new ZB.ZBClient("zeebe.geocam.xyz:26500", {
-          onReady: () => {
-            console.log("zeebe client connected");
-          },
-        });
-        globals.set("zbc", client);
-      }
-      return client;
-    };
 
     const poll = async function (capability) {
       const running = Object.keys(active).length;
@@ -32,7 +21,7 @@ module.exports = function (RED) {
         Math.floor(globals.get("availableCompute") / capability.compute),
         slots
       );
-      const zbc = zeebeClient();
+      const zbc = zeebeConfig.zbc;
       req = {
         maxJobsToActivate: slots,
         requestTimeout: requestTimeout,
