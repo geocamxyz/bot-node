@@ -1,6 +1,6 @@
 {
   "name": "bot-node",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "main": "bot.js",
   "scripts": {
@@ -19,7 +19,9 @@
   "node-red": {
     "nodes": {
       "bot": "bot.js",
-      "zeebe": "zeebe.js"
+      "botregister": "botregister.js",
+      "botcomplete": "botcomplete.js",
+      "botconfig": "botconfig.js"
     }
   },
   "dependencies": {

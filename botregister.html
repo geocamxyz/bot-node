@@ -1,0 +1,58 @@
+<script type="text/javascript">
+    RED.nodes.registerType('botregister',{
+        category: 'bots',
+        color: '#C0DEED',
+        defaults: {
+            name: {value:""},
+            botconfig: { required: true, type: 'botconfig' },
+        },
+        inputs:1,
+        outputs:1,
+        icon: "bot.png",
+        label: function() {
+            return this.name||"register";
+        },
+        paletteLabel: 'register'
+    });
+</script>
+
+<script type="text/html" data-template-name="botregister">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-botconfig"><i class="fa fa-server"></i>Bot config</label>
+        <input type="text" id="node-input-botconfig" placeholder="Bot onfig" />
+    </div>
+</script>
+
+<script type="text/html" data-help-name="botregister">
+    <p>
+        A node that handles a registering a bot with the PM system.
+        This must be called before the bot node is used.
+    </p>
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">any</span></dt>
+        <dd>incoming payload is ignored.  Just there for triggering the node.
+        </dd>
+
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Standard output
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">array</span></dt>
+                <dd>Array of capabilities of this bot</dd>
+
+            
+            </dl>
+        </li>
+    </ol>
+
+
+</script>

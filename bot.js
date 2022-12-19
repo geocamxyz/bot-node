@@ -6,7 +6,7 @@ module.exports = function (RED) {
   function bot(config) {
     RED.nodes.createNode(this, config);
 
-    const zeebeConfig = RED.nodes.getNode(config.zeebe);
+    const botConfig = RED.nodes.getNode(config.botconfig);
     
     const node = this;
     const globals = node.context().global;
@@ -21,7 +21,7 @@ module.exports = function (RED) {
         Math.floor(globals.get("availableCompute") / capability.compute),
         slots
       );
-      const zbc = zeebeConfig.zbc;
+      const zbc = botConfig.zbc;
       req = {
         maxJobsToActivate: slots,
         requestTimeout: requestTimeout,
@@ -63,14 +63,14 @@ module.exports = function (RED) {
         stored.splice(stored.indexOf(task), 1);
         globals.set('capabilities', stored);
         console.log('set stored capabilities',stored)
-        this.status({
+        node.status({
           fill: "green",
           shape: "dot",
           text: `Polling for ${task} jobs`,
         });
         setTimeout(() => poll(capabilities[idx], idx * requestTimeout));
       } else {
-        this.status({
+        node.status({
           fill: "yellow",
           shape: "ring",
           text: `Not a ${hostname} task`,

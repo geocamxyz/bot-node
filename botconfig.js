@@ -3,7 +3,7 @@
 module.exports = function (RED) {
     const ZB = require('zeebe-node');
 
-    function Zeebe(config) {
+    function botconfig(config) {
         RED.nodes.createNode(this, config);
 
         const node = this;
@@ -13,14 +13,14 @@ module.exports = function (RED) {
             useTls: Boolean(config.useTls),
             oAuth: {
                 url: config.oAuthUrl,
-                audience: config.contactPoint.split(':')[0],
+                audience: config.zeebe.split(':')[0],
                 clientId: config.clientId,
                 clientSecret: config.clientSecret,
                 cacheOnDisk: true,
             },
             */
             onReady: () => {
-                node.log(`Connected to ${config.contactPoint}`);
+                node.log(`Connected to ${config.zeebe}`);
                 node.emit('ready');
             },
             onConnectionError: () => {
@@ -29,7 +29,8 @@ module.exports = function (RED) {
             },
         };
 
-        node.zbc = new ZB.ZBClient(config.contactPoint, options);
+        node.zbc = new ZB.ZBClient(config.zeebe, options);
+        node.pm = config.geocampm;
 
         node.on('close', function (done) {
             return node.zbc.close().then(() => {
@@ -39,5 +40,5 @@ module.exports = function (RED) {
         });
     }
 
-    RED.nodes.registerType('zeebe', Zeebe);
+    RED.nodes.registerType('botconfig', botconfig);
 };

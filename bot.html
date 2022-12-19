@@ -4,7 +4,7 @@
         color: '#C0DEED',
         defaults: {
             name: {value:""},
-            zeebe: { required: true, type: 'zeebe' },
+            botconfig: { required: true, type: 'botconfig' },
         },
         inputs:1,
         outputs:1,
@@ -21,13 +21,13 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-zeebe"><i class="fa fa-server"></i> Zeebe Broker</label>
-        <input type="text" id="node-input-zeebe" placeholder="Zeebe Broker" />
+        <label for="node-input-botconfig"><i class="fa fa-server"></i>Bot config</label>
+        <input type="text" id="node-input-botconfig" placeholder="Bot onfig" />
     </div>
 </script>
 
 <script type="text/html" data-help-name="bot">
-    <p>A node that handles a zeebe task.  Name the node with the task type and make sure the incoming payload is a response from:
+    <p>A node that handles a botconfig task.  Name the node with the task type and make sure the incoming payload is a response from:
         https://manager.geocam.xyz/api/v1/bots/capabilities
     </p>
 
@@ -64,7 +64,7 @@
     <h3>References</h3>
     <ul>
         <li>Camunda Cloud Docs: <a href="https://docs.camunda.io/docs/product-manuals/concepts/job-workers/">Job Workers</a></li>
-        <li>zeebe-node docs: <a href="https://www.npmjs.com/package/zeebe-node#job-workers">createWorker</a></li>
+        <li>zeebe docs: <a href="https://www.npmjs.com/package/zeebe#job-workers">createWorker</a></li>
     </ul>
 
 </script>
