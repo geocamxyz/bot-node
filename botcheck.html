@@ -1,0 +1,43 @@
+<script type="text/javascript">
+    RED.nodes.registerType('botcheck',{
+        category: 'bots',
+        color: '#C0DEED',
+        defaults: {
+            name: {value:""},
+        },
+        inputs:1,
+        outputs:1,
+        icon: "bot.png",
+        label: function() {
+            return this.name||"check";
+        },
+        paletteLabel: 'check'
+    });
+</script>
+
+<script type="text/html" data-template-name="botcheck">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+</script>
+
+<script type="text/html" data-help-name="botcheck">
+    <p>
+        A node that checks jobs we're handled
+    </p>
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">any</span></dt>
+        <dd>Incoming payload with a capabilties as returned from PM system.
+        </dd>
+
+    </dl>
+
+  
+
+
+</script>
