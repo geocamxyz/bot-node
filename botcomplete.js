@@ -5,20 +5,20 @@ module.exports = function (RED) {
     const node = this;
 
     node.on("input", function (msg) {
+      if (msg.payload && msg.payload.done)
+        msg.payload.done(msg.payload.job.error);
       if (msg.payload.job.error) {
         node.status({
           fill: "red",
           shape: "dot",
           text: `${msg.payload.job.error}`,
         });
-        msg.payload.done(msg.payload.job.error);
       } else {
         node.status({
           fill: "green",
           shape: "dot",
           text: `${new Date().toLocaleString()}`,
         });
-        msg.payload.done();
       }
     });
   }
