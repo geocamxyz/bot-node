@@ -1,5 +1,5 @@
 
   const os = require("os");
-  const arch = os.arch();
-  const swap = ((arch === "linux") || (arch === "arm64")) ? "/" : "\\"
+  const plat = os.platform();
+  const swap = ((plat === "linux") || (plat === "darwin")) ? "/" : "\\"
   module.exports.pathChar = swap;
