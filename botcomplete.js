@@ -6,7 +6,13 @@ module.exports = function (RED) {
 
     node.on("input", function (msg) {
       if (msg.payload && msg.payload.done)
-        msg.payload.done(msg.payload.job.error);
+        msg.payload.done(msg.payload.job.error).catch((err) => {
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: `zeebe err: ${err}`,
+          });
+        });
       if (msg.payload.job.error) {
         node.status({
           fill: "red",
@@ -15,7 +21,7 @@ module.exports = function (RED) {
         });
       } else {
         node.status({
-          fill: "green",
+          fill: "blue",
           shape: "dot",
           text: `${new Date().toLocaleString()}`,
         });

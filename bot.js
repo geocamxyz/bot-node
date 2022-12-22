@@ -36,13 +36,13 @@ module.exports = function (RED) {
           "availableCompute",
           globals.get("availableCompute") - capability.compute
         );
-        const done = function (errorMessage = null) {
+        const done = async function (errorMessage = null) {
           delete active[job.key];
           globals.set(
             "availableCompute",
             globals.get("availableCompute") + capability.compute
           );
-          errorMessage ? zbc.failJob({ jobKey: job.key, errorMessage: errorMessage}) : zbc.completeJob({ jobKey: job.key, variables: job.variables });
+          await (errorMessage ? zbc.failJob({ jobKey: job.key, errorMessage: errorMessage, retries: job.retries - 1}) : zbc.completeJob({ jobKey: job.key, variables: job.variables }));
         };
         msg = { payload: { job: job, done: done } };
         node.send(msg);
