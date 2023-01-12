@@ -6,7 +6,7 @@ module.exports = function (RED) {
 
     node.on("input", function (msg) {
       if (msg.payload && msg.payload.done)
-        msg.payload.done(msg.payload.job.error).catch((err) => {
+        msg.payload.done(msg.payload.job.error, msg.payload.job.variables).catch((err) => {
           node.status({
             fill: "red",
             shape: "ring",
