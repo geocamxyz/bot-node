@@ -16,13 +16,15 @@ module.exports = function (RED) {
 
     const poll = async function (capability) {
       const running = Object.keys(active).length;
-      const slots = capability.limit - running;
+      const limit = parseInt(capability.limit);
+      const compute = parseFloat(capability.compute);
+      const slots = limit - running;
       let available = globals.get("availableCompute");
       if (available === undefined) {
         available = 1;
       }
       const numJobs = Math.min(
-        Math.floor(available / capability.compute),
+        Math.floor(available / compute),
         slots
       );
       if (numJobs > 0) {
@@ -42,10 +44,10 @@ module.exports = function (RED) {
         jobs = await zbc.activateJobs(req);
         jobs.forEach((job) => {
           active[job.key] = job;
-          globals.set("availableCompute", available - capability.compute);
+          globals.set("availableCompute", available - compute);
           const done = async function (errorMessage = null, variables) {
             delete active[job.key];
-            globals.set("availableCompute", available + capability.compute);
+            globals.set("availableCompute", globals.get("availableCompute") + compute);
             await (errorMessage
               ? zbc.failJob({
                   jobKey: job.key,
@@ -63,8 +65,8 @@ module.exports = function (RED) {
           shape: "dot",
           text: `${
             new Date().toLocaleString().split(" ")[1]
-          } busy: ${running}/${capability.limit} ${
-            capability.compute
+          } busy: ${running}/${limit} ${
+            compute
           }/${available}`,
         });
       }
