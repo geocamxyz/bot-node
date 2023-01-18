@@ -34,19 +34,18 @@ module.exports = function (RED) {
     };
 
     node.status({
-          fill: "green",
-          shape: "dot",
-          text: `${machine.address}`,
-        });
+      fill: "green",
+      shape: "dot",
+      text: `${machine.address}`,
+    });
 
     node.on("input", async function (msg) {
-      const url = `${baseUrl}?hostname=${machine.hostname}&platform=${machine.platform}&arch=${machine.arch}&address=${machine.address}&release=${machine.release}`
-     const response = await got(url, { method: 'GET' }).json();
+      const url = `${baseUrl}?hostname=${machine.hostname}&platform=${machine.platform}&arch=${machine.arch}&address=${machine.address}&release=${machine.release}`;
+      const response = await got(url, { method: "GET" }).json();
       msg.payload = response;
       node.send(msg);
     });
   }
 
   RED.nodes.registerType("botregister", register);
-
 };

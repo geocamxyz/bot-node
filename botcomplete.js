@@ -17,13 +17,13 @@ module.exports = function (RED) {
         node.status({
           fill: "red",
           shape: "dot",
-          text: `${msg.payload.job.error}`,
+          text: `${new Date().toLocaleString().split(' ')[1]} ${msg.payload.job.processInstanceKey}${msg.payload.job.error}`,
         });
       } else {
         node.status({
           fill: "blue",
           shape: "dot",
-          text: `${new Date().toLocaleString()}`,
+          text: `${new Date().toLocaleString().split(' ')[1]} ${msg.payload.job.processInstanceKey}`,
         });
       }
     });

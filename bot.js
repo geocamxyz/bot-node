@@ -7,7 +7,7 @@ module.exports = function (RED) {
     RED.nodes.createNode(this, config);
 
     const botConfig = RED.nodes.getNode(config.botconfig);
-    
+
     const node = this;
     const globals = node.context().global;
     const task = config.name;
@@ -17,58 +17,89 @@ module.exports = function (RED) {
     const poll = async function (capability) {
       const running = Object.keys(active).length;
       const slots = capability.limit - running;
+      let available = globals.get("availableCompute");
+      if (available === undefined) {
+        available = 1;
+      }
       const numJobs = Math.min(
-        Math.floor(globals.get("availableCompute") / capability.compute),
+        Math.floor(available / capability.compute),
         slots
       );
-      const zbc = botConfig.zbc;
-      req = {
-        maxJobsToActivate: slots,
-        requestTimeout: requestTimeout,
-        timeout: capability.timeout,
-        type: task,
-        worker: hostname,
-      };
-      jobs = await zbc.activateJobs(req);
-      jobs.forEach((job) => {
-        active[job.key] = job;
-        globals.set(
-          "availableCompute",
-          globals.get("availableCompute") - capability.compute
-        );
-        const done = async function (errorMessage = null, variables) {
-          delete active[job.key];
-          globals.set(
-            "availableCompute",
-            globals.get("availableCompute") + capability.compute
-          );
-          await (errorMessage ? zbc.failJob({ jobKey: job.key, errorMessage: errorMessage, retries: job.retries - 1}) : zbc.completeJob({ jobKey: job.key, variables: variables }));
+      if (numJobs > 0) {
+        const zbc = botConfig.zbc;
+        req = {
+          maxJobsToActivate: numJobs,
+          requestTimeout: requestTimeout,
+          timeout: capability.timeout,
+          type: task,
+          worker: hostname,
         };
-        msg = { payload: { job: job, done: done } };
-        node.send(msg);
-      });
+        node.status({
+          fill: "green",
+          shape: "dot",
+          text: `${new Date().toLocaleString().split(" ")[1]} Poll: ${numJobs}`,
+        });
+        jobs = await zbc.activateJobs(req);
+        jobs.forEach((job) => {
+          active[job.key] = job;
+          globals.set("availableCompute", available - capability.compute);
+          const done = async function (errorMessage = null, variables) {
+            delete active[job.key];
+            globals.set("availableCompute", available + capability.compute);
+            await (errorMessage
+              ? zbc.failJob({
+                  jobKey: job.key,
+                  errorMessage: errorMessage,
+                  retries: job.retries - 1,
+                })
+              : zbc.completeJob({ jobKey: job.key, variables: variables }));
+          };
+          msg = { payload: { job: job, done: done } };
+          node.send(msg);
+        });
+      } else {
+        node.status({
+          fill: "grey",
+          shape: "dot",
+          text: `${
+            new Date().toLocaleString().split(" ")[1]
+          } busy: ${running}/${capability.limit} ${
+            capability.compute
+          }/${available}`,
+        });
+      }
     };
 
     node.on("input", function (msg) {
       // find my name in array
       const capabilities = msg.payload;
-      let stored = globals.get('capabilities');
-      console.log('got stored capabilities',stored)
+      let stored = globals.get("capabilities");
       if (!stored) {
-        stored = capabilities.map(c => c.task_type);
-        globals.set('capabilities',stored);
+        stored = capabilities.map((c) => c.task_type);
+        globals.set("capabilities", stored);
       }
       const idx = capabilities.findIndex((c) => c["task_type"] === task);
       if (idx >= 0) {
         stored.splice(stored.indexOf(task), 1);
-        globals.set('capabilities', stored);
-        console.log('set stored capabilities',stored)
+        globals.set("capabilities", stored);
+        /*
         node.status({
           fill: "green",
           shape: "dot",
           text: `Polling for ${task} jobs`,
         });
-        setTimeout(() => poll(capabilities[idx], idx * requestTimeout));
+        */
+        setTimeout(
+          () =>
+            poll(capabilities[idx]).catch((err) => {
+              node.status({
+                fill: "red",
+                shape: "dot",
+                text: `${new Date().toLocaleString().split(" ")[1]} ${err}`,
+              });
+            }),
+          idx * requestTimeout
+        );
       } else {
         node.status({
           fill: "yellow",
