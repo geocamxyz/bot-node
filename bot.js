@@ -14,19 +14,39 @@ module.exports = function (RED) {
     const hostname = os.hostname;
     const active = {};
 
+    const getTime = function() {
+      const time =    new Date().toLocaleString().split(" ")[1]
+      const parts = time.split(':');
+      parts.pop();
+      return parts.join(':');
+    }
+
     const poll = async function (capability) {
       const running = Object.keys(active).length;
       const limit = parseInt(capability.limit);
       const compute = parseFloat(capability.compute);
       const slots = limit - running;
+
+      const setBusyStatus = function () {
+        const instances = Object.values(active).map(
+            (v) => v.processInstanceKey
+          );
+        if (instances.length > 0) {
+          node.status({
+            fill: "grey",
+            shape: "dot",
+            text: `${getTime()} ${instances.length} running: ${instances.join(", ")}`,
+          });
+        } else {
+          node.status({});
+        }
+      };
+
       let available = globals.get("availableCompute");
       if (available === undefined) {
         available = 1;
       }
-      const numJobs = Math.min(
-        Math.floor(available / compute),
-        slots
-      );
+      const numJobs = Math.min(Math.floor(available / compute), slots);
       if (numJobs > 0) {
         const zbc = botConfig.zbc;
         req = {
@@ -36,18 +56,26 @@ module.exports = function (RED) {
           type: task,
           worker: hostname,
         };
-        node.status({
-          fill: "green",
-          shape: "dot",
-          text: `${new Date().toLocaleString().split(" ")[1]} Poll: ${numJobs}`,
-        });
+        if (running < 1) {
+          node.status({
+            fill: "green",
+            shape: "dot",
+            text: `${
+              getTime()
+            } Poll: ${numJobs}`,
+          });
+        }
         jobs = await zbc.activateJobs(req);
         jobs.forEach((job) => {
           active[job.key] = job;
           globals.set("availableCompute", available - compute);
           const done = async function (errorMessage = null, variables) {
             delete active[job.key];
-            globals.set("availableCompute", globals.get("availableCompute") + compute);
+            setBusyStatus();
+            globals.set(
+              "availableCompute",
+              globals.get("availableCompute") + compute
+            );
             await (errorMessage
               ? zbc.failJob({
                   jobKey: job.key,
@@ -59,16 +87,17 @@ module.exports = function (RED) {
           msg = { payload: { job: job, done: done } };
           node.send(msg);
         });
+        setBusyStatus();
       } else {
-        node.status({
-          fill: "grey",
-          shape: "dot",
-          text: `${
-            new Date().toLocaleString().split(" ")[1]
-          } busy: ${running}/${limit} ${
-            compute
-          }/${available}`,
-        });
+        if (running < 1) {
+          node.status({
+            fill: "grey",
+            shape: "ring",
+            text: `${
+             getTime()
+            } busy: ${running}/${limit} ${compute}/${available}`,
+          });
+        }
       }
     };
 
@@ -97,7 +126,7 @@ module.exports = function (RED) {
               node.status({
                 fill: "red",
                 shape: "dot",
-                text: `${new Date().toLocaleString().split(" ")[1]} ${err}`,
+                text: `${getTime()} ${err}`,
               });
             }),
           idx * requestTimeout
