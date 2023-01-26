@@ -21,15 +21,30 @@ module.exports = function (RED) {
       return parts.join(':');
     }
 
+    const oneDP = function(n) {
+      return Math.round(n * 10) / 10;
+    }
+
+    const runTime = function(since) {
+      const now = new Date();
+      const diff = now.getTime() - since.getTime();
+      const hours = Math.floor(diff / 3600000);
+      if (hours > 0) return `${oneDP(diff / 3600000)}h`;
+      const minutes = Math.floor(diff / 60000);
+      if (minutes > 0) return `${minutes}m`;
+      const seconds = ((diff % 60000) / 1000).toFixed(0);
+      return `${seconds}s`;
+    }
+
     const poll = async function (capability) {
       const running = Object.keys(active).length;
       const limit = parseInt(capability.limit);
       const compute = parseFloat(capability.compute);
       const slots = limit - running;
 
-      const setBusyStatus = function () {
+      const setBusyStatus = function (resetIfNone = true) {
         const instances = Object.values(active).map(
-            (v) => v.processInstanceKey
+            (v) => `${v.processInstanceKey} ${runTime(v.since)}`
           );
         if (instances.length > 0) {
           node.status({
@@ -37,7 +52,7 @@ module.exports = function (RED) {
             shape: "dot",
             text: `${getTime()} ${instances.length} running: ${instances.join(", ")}`,
           });
-        } else {
+        } else if (resetIfNone) {
           node.status({});
         }
       };
@@ -52,7 +67,7 @@ module.exports = function (RED) {
         req = {
           maxJobsToActivate: numJobs,
           requestTimeout: requestTimeout,
-          timeout: capability.timeout,
+          timeout: parseInt(capability.timeout),
           type: task,
           worker: hostname,
         };
@@ -65,16 +80,17 @@ module.exports = function (RED) {
             } Poll: ${numJobs}`,
           });
         }
-        jobs = await zbc.activateJobs(req);
+        jobs = await botConfig.activateJobs(req);
         jobs.forEach((job) => {
+          job.since = new Date();
           active[job.key] = job;
-          globals.set("availableCompute", available - compute);
+          globals.set("availableCompute",oneDP(available - compute));
           const done = async function (errorMessage = null, variables) {
             delete active[job.key];
             setBusyStatus();
             globals.set(
               "availableCompute",
-              globals.get("availableCompute") + compute
+             oneDP( globals.get("availableCompute") + compute)
             );
             await (errorMessage
               ? zbc.failJob({
@@ -87,7 +103,7 @@ module.exports = function (RED) {
           msg = { payload: { job: job, done: done } };
           node.send(msg);
         });
-        setBusyStatus();
+        setBusyStatus(false);
       } else {
         if (running < 1) {
           node.status({
@@ -97,6 +113,8 @@ module.exports = function (RED) {
              getTime()
             } busy: ${running}/${limit} ${compute}/${available}`,
           });
+        } else {
+           setBusyStatus();
         }
       }
     };
