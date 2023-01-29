@@ -11,7 +11,7 @@ module.exports = function (RED) {
     const node = this;
     const globals = node.context().global;
     const task = config.name;
-    const hostname = os.hostname;
+    const hostname = os.hostname();
     const active = {};
 
     const getTime = function() {
@@ -84,8 +84,10 @@ module.exports = function (RED) {
         jobs.forEach((job) => {
           job.since = new Date();
           active[job.key] = job;
+          zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: hostname} , local: false})
           globals.set("availableCompute",oneDP(available - compute));
           const done = async function (errorMessage = null, variables) {
+            zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: null} , local: false});
             delete active[job.key];
             setBusyStatus();
             globals.set(
