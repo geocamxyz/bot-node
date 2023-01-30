@@ -84,10 +84,10 @@ module.exports = function (RED) {
         jobs.forEach((job) => {
           job.since = new Date();
           active[job.key] = job;
-          zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: hostname} , local: false})
+          zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: hostname} , local: false}).catch((err) => console.log('error updating bot variable',err));
           globals.set("availableCompute",oneDP(available - compute));
           const done = async function (errorMessage = null, variables) {
-            zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: null} , local: false});
+            await zbc.setVariables({ elementInstanceKey: job.elementInstanceKey, variables: {bot: null} , local: false});
             delete active[job.key];
             setBusyStatus();
             globals.set(
