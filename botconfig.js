@@ -29,6 +29,7 @@ module.exports = function (RED) {
 
     node.zbc = new ZB.ZBClient(config.zeebe, options);
     node.pm = config.geocampm;
+    node.telegram = {token: config.telegramToken, chatId: config.telegramChatId};
 
     node.activateJobs = function (request) {
       return new Promise(async (resolve, reject) => {

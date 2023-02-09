@@ -11,6 +11,14 @@
                 value: 'http://vpn.manager.geocam.xyz/api/v1/bots/capabilities',
                 required: true,
             },
+            telegramToken: {
+                value: '',
+                required: false,
+            },
+            telegramChatId: {
+                value: '',
+                required: false,
+            },
         },
         label: function () {
             return this.name || this.zeebe || 'Bot config';
@@ -30,7 +38,17 @@
     </div>
 
     <div class="form-row">
-        <label for="node-config-input-zeebe"><i class="fa fa-server"></i>Geocam PM System</label>
+        <label for="node-config-input-geocampm"><i class="fa fa-server"></i>Geocam PM System</label>
         <input type="text" id="node-config-input-geocampm">
+    </div>
+
+    <div class="form-row">
+        <label for="node-config-input-telegramToken"><i class="fa fa-server"></i>Telegram Bot Token</label>
+        <input type="text" id="node-config-input-telegramToken">
+    </div>
+
+    <div class="form-row">
+        <label for="node-config-input-telegramChatId"><i class="fa fa-server"></i>Telegram Chat Id</label>
+        <input type="text" id="node-config-input-telegramChatId">
     </div>
 </script>

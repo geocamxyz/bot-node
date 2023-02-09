@@ -1,0 +1,57 @@
+<script type="text/javascript">
+    RED.nodes.registerType('botnotify',{
+        category: 'bots',
+        color: '#C0DEED',
+        defaults: {
+            name: {value:""},
+            botconfig: { required: true, type: 'botconfig' },
+            message: {value:""},
+            prependHostname: { value: true, required: false },
+        },
+        inputs:1,
+        outputs:1,
+        icon: "bot.png",
+        label: function() {
+            return this.name||"notify";
+        },
+        paletteLabel: 'notify'
+    });
+</script>
+
+<script type="text/html" data-template-name="botnotify">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-botconfig"><i class="fa fa-server"></i>Bot config</label>
+        <input type="text" id="node-input-botconfig" placeholder="Bot onfig" />
+    </div>
+    <div class="form-row">
+        <label for="node-input-message"><i class="fa fa-tag"></i> Message</label>
+        <input type="text" id="node-input-message" placeholder="Message">
+    </div>
+    <div class="form-row">
+        <label for="node-input-prependHostname"><i class="fa fa-lock"></i>Add hostname</label>
+        <input type="checkbox" id="node-input-prependHostname">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="botnotify">
+    <p>
+        A node that handles sending a message to the telegram channel in config
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>message<span class="property-type">string</span></dt>
+        <dd>
+           If the message is not specified in the node, the message will be taken from msg.payload.message or msg.payload
+        </dd>
+
+    </dl>
+
+  
+
+
+</script>

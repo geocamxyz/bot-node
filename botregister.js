@@ -41,9 +41,18 @@ module.exports = function (RED) {
 
     node.on("input", async function (msg) {
       const url = `${baseUrl}?hostname=${machine.hostname}&platform=${machine.platform}&arch=${machine.arch}&address=${machine.address}&release=${machine.release}`;
+     try {
       const response = await got(url, { method: "GET" }).json();
       msg.payload = response;
       node.send(msg);
+     } catch (error) {
+        node.error(error);
+            node.status({
+      fill: "red",
+      shape: "dot",
+      text: `${error}`,
+    });
+      }
     });
   }
 
