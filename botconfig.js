@@ -35,6 +35,7 @@ module.exports = function (RED) {
       return new Promise(async (resolve, reject) => {
         try {
           const stream = await node.zbc.grpc.activateJobsStream(request);
+          if (stream) {
           stream.on("data", (result) => {
             const jobs = result.jobs.map((job) =>
               Object.assign({}, job, {
@@ -47,6 +48,9 @@ module.exports = function (RED) {
           stream.on("close", () => {
             resolve([]);
           });
+          } else {
+            // did not get a stream - is this due to timeout or something we don't need to worry about????
+          }
         } catch (err) {
           reject(err);
         }

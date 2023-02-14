@@ -5,25 +5,29 @@ module.exports = function (RED) {
     const node = this;
 
     node.on("input", function (msg) {
-      if (msg.payload && msg.payload.done)
-        msg.payload.done(msg.payload.job.error, msg.payload.job.variables).catch((err) => {
+      const payload = msg.payload && msg.payload.job ? msg.payload : msg.zeebePayload;
+      if (payload && payload.done) {
+        const  error  = payload.job && payload.job.error;
+        const variables = payload.job && payload.job.variables;
+        payload.done(error,variables,node).catch((err) => {
           node.status({
             fill: "red",
             shape: "ring",
             text: `zeebe err: ${err}`,
           });
         });
-      if (msg.payload.job.error) {
+      }
+      if (payload.job && payload.job.error) {
         node.status({
           fill: "red",
           shape: "dot",
-          text: `${new Date().toLocaleString().split(' ')[1]} ${msg.payload.job.processInstanceKey}${msg.payload.job.error}`,
+          text: `${new Date().toLocaleString().split(' ')[1]} ${payload.job.processInstanceKey}${payload.job.error}`,
         });
       } else {
         node.status({
           fill: "blue",
           shape: "dot",
-          text: `${new Date().toLocaleString().split(' ')[1]} ${msg.payload.job.processInstanceKey}`,
+          text: `${new Date().toLocaleString().split(' ')[1]} ${payload.job.processInstanceKey}`,
         });
       }
     });

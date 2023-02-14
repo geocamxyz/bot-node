@@ -1,0 +1,46 @@
+<script type="text/javascript">
+    RED.nodes.registerType('botpidscooper',{
+        category: 'bots',
+        color: '#C0DEED',
+        defaults: {
+            name: {value:""},
+        },
+        inputs:1,
+        outputs:0,
+        icon: "bot.png",
+        label: function() {
+            return this.name||"PID scooper";
+        },
+        paletteLabel: 'PID scooper'
+    });
+</script>
+
+<script type="text/html" data-template-name="botpidscooper">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+</script>
+
+<script type="text/html" data-help-name="botpidscooper">
+    <p>
+        A node that gathers pids of any exec commands so they can be killed if machine urgently reserved.
+    </p>
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">output from status node</span></dt>
+        <dd>Input of this node must be connected to a status node which is set to gather status from all nodes.
+            This node will parse the input for only exec node status updates that include process ids 
+            and will add those to a PIDs global object where each property is an exec node id with the process id value.
+            Process ids will be removed from this object as the exec node status has the process id removed.
+        </dd>
+
+    </dl>
+
+  
+
+
+</script>

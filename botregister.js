@@ -45,6 +45,7 @@ module.exports = function (RED) {
       const response = await got(url, { method: "GET" }).json();
       msg.payload = response;
       node.send(msg);
+      node.status({});
      } catch (error) {
         node.error(error);
             node.status({
