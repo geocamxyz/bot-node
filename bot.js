@@ -74,7 +74,7 @@ module.exports = function (RED) {
       const pidObj = globals.get("PIDs") || {};
       const pids = Object.values(pidObj);
       const cmd = isWindows ? "taskkill /F ?PID " : "kill ";
-      pids.forEach((pid) => { 
+      pids.forEach((pid) => {
         exec(cmd + pid, function (error, stdout, stderr) {
           if (error) {
             console.log(error);
@@ -95,7 +95,7 @@ module.exports = function (RED) {
       if (task == "bot:reserve-urgent") {
         urgentReserveTimeout = setTimeout(() => {
           poll(capability, true);
-        }, 1000 * 100);  //attempt a forced reserve in just under 2 minutes at which point other machines should have cleared it if available
+        }, 1000 * 100); //attempt a forced reserve in just under 2 minutes at which point other machines should have cleared it if available
       }
 
       const running = Object.keys(active).length;
@@ -105,20 +105,20 @@ module.exports = function (RED) {
 
       const setBusyStatus = function (resetIfNone = true) {
         if (!reserverNode) {
-        const instances = Object.values(active).map(
-          (v) => `${v.processInstanceKey} ${runTime(v.since)}`
-        );
-        if (instances.length > 0) {
-          node.status({
-            fill: "grey",
-            shape: "dot",
-            text: `${getTime()} ${instances.length} running: ${instances.join(
-              ", "
-            )}`,
-          });
-        } else if (resetIfNone) {
-          node.status({});
-        }
+          const instances = Object.values(active).map(
+            (v) => `${v.processInstanceKey} ${runTime(v.since)}`
+          );
+          if (instances.length > 0) {
+            node.status({
+              fill: "grey",
+              shape: "dot",
+              text: `${getTime()} ${instances.length} running: ${instances.join(
+                ", "
+              )}`,
+            });
+          } else if (resetIfNone) {
+            node.status({});
+          }
         }
       };
 
@@ -168,11 +168,6 @@ module.exports = function (RED) {
             variables,
             completeNode
           ) {
-            await zbc.setVariables({
-              elementInstanceKey: job.elementInstanceKey,
-              variables: { bot: null },
-              local: false,
-            });
             delete active[job.key];
             setBusyStatus();
             globals.set(
@@ -185,6 +180,12 @@ module.exports = function (RED) {
             if (task == "bot:reserve-urgent" && force_one_job) {
               await jobsFinished(completeNode);
             }
+            // if job has been terminated calls below will error so we call them last
+            await zbc.setVariables({
+              elementInstanceKey: job.elementInstanceKey,
+              variables: { bot: null },
+              local: false,
+            });
             await (errorMessage
               ? zbc.failJob({
                   jobKey: job.key,
