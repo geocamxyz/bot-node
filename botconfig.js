@@ -27,27 +27,34 @@ module.exports = function (RED) {
       },
     };
 
-    node.zbc = new ZB.ZBClient(config.zeebe, options);
-    node.pm = config.geocampm;
-    node.telegram = {token: config.telegramToken, chatId: config.telegramChatId};
+    const zeebe = process.env.ZEEBE || "zeebe:26500";
+
+    node.zbc = new ZB.ZBClient(zeebe, options);
+    const projectmanager =
+      process.env.PROJECTMANAGER || "https://projectmanager";
+    node.pm = `${projectmanager}/api/v1/bots/capabilities`;
+    node.telegram = {
+      token: config.telegramToken,
+      chatId: config.telegramChatId,
+    };
 
     node.activateJobs = function (request) {
       return new Promise(async (resolve, reject) => {
         try {
           const stream = await node.zbc.grpc.activateJobsStream(request);
           if (stream) {
-          stream.on("data", (result) => {
-            const jobs = result.jobs.map((job) =>
-              Object.assign({}, job, {
-                customHeaders: JSON.parse(job.customHeaders),
-                variables: JSON.parse(job.variables),
-              })
-            );
-            resolve(jobs);
-          });
-          stream.on("close", () => {
-            resolve([]);
-          });
+            stream.on("data", (result) => {
+              const jobs = result.jobs.map((job) =>
+                Object.assign({}, job, {
+                  customHeaders: JSON.parse(job.customHeaders),
+                  variables: JSON.parse(job.variables),
+                })
+              );
+              resolve(jobs);
+            });
+            stream.on("close", () => {
+              resolve([]);
+            });
           } else {
             // did not get a stream - is this due to timeout or something we don't need to worry about????
           }
