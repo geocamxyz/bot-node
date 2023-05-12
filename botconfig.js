@@ -31,7 +31,7 @@ module.exports = function (RED) {
 
     node.zbc = new ZB.ZBClient(zeebe, options);
     const projectmanager =
-      process.env.PROJECTMANAGER || "https://projectmanager";
+      process.env.PROJECTMANAGER || "http://projectmanager";
     node.pm = `${projectmanager}/api/v1/bots/capabilities`;
     node.telegram = {
       token: config.telegramToken,
