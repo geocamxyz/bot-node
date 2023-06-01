@@ -206,7 +206,7 @@ module.exports = function (RED) {
             // if job has been terminated calls below will error so we call them last
             await zbc.setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { bot: null, botIPs: null },
+              variables: { bot: null },
               local: false,
             });
             await (errorMessage
