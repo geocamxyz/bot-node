@@ -182,6 +182,7 @@ module.exports = function (RED) {
               local: false,
             })
             .catch((err) => console.log("error updating bot variable", err));
+          node.warn(`set Ipaddresses to ${JSON.stringify(ipAddresses)}`);
           globals.set("availableCompute", oneDP(available - compute));
           if (task.startsWith("bot:reserve")) {
             reserve(job);
