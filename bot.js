@@ -182,9 +182,9 @@ module.exports = function (RED) {
               local: false,
             })
             .catch((err) => {
-                node.warn(`error updating bot variable ${JSON.stringify(err)}`);
-              console.log("error updating bot variable", err)}
-              );
+              node.warn(`error updating bot variable ${JSON.stringify(err)}`);
+              console.log("error updating bot variable", err);
+            });
           node.warn(`set Ipaddresses to ${JSON.stringify(ipAddresses)}`);
           globals.set("availableCompute", oneDP(available - compute));
           if (task.startsWith("bot:reserve")) {
@@ -207,6 +207,8 @@ module.exports = function (RED) {
             if (task == "bot:reserve-urgent" && force_one_job) {
               await jobsFinished(completeNode);
             }
+            if (!errorMessage) variables.bot = null;
+            delete variables.botIPs; // stop variables from previous instance overwriting Ipds from this bot
             // if job has been terminated calls below will error so we call them last
             /*
             await zbc.setVariables({
