@@ -181,7 +181,10 @@ module.exports = function (RED) {
               variables: { bot: hostname, botIPs: ipAddresses },
               local: false,
             })
-            .catch((err) => console.log("error updating bot variable", err));
+            .catch((err) => {
+                node.warn(`error updating bot variable ${JSON.stringify(err)}`);
+              console.log("error updating bot variable", err)}
+              );
           node.warn(`set Ipaddresses to ${JSON.stringify(ipAddresses)}`);
           globals.set("availableCompute", oneDP(available - compute));
           if (task.startsWith("bot:reserve")) {
@@ -205,11 +208,13 @@ module.exports = function (RED) {
               await jobsFinished(completeNode);
             }
             // if job has been terminated calls below will error so we call them last
+            /*
             await zbc.setVariables({
               elementInstanceKey: job.elementInstanceKey,
               variables: { bot: null },
               local: false,
             });
+            */
             await (errorMessage
               ? zbc.failJob({
                   jobKey: job.key,
