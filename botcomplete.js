@@ -10,7 +10,7 @@ module.exports = function (RED) {
       if (payload && payload.done) {
         const  error  = (payload.job && payload.job.error) || null;
         const variables = payload.job && payload.job.variables;
-        node.warn(`about to call done with error ${error}`);
+        node.warn(`about to call done with error ${error}, variables: ${JSON.stringify(variables)}`);
         payload.done(error,variables,node).catch((err) => {
           node.warn(`got errror calling payload done ${err}`);
           node.status({
