@@ -36,7 +36,7 @@ module.exports = function (RED) {
 
     const node = this;
     const globals = node.context().global;
-    const task = config.name;
+    let task = config.name;
     const hostname = os.hostname();
 
     const active = {};
@@ -112,12 +112,8 @@ module.exports = function (RED) {
         if (!reserverNode) node.status({});
         return;
       }
-      if (!reserved && task == "bot:release") {
-        // don't poll for release task if not reserved
+        if (!reserved && task == "bot:release") {
         return;
-      }
-      if (task=="bot:release"){
-        task = `bot:release-${hostname}`
       }
 
       let urgentReserveTimeout;
@@ -165,7 +161,7 @@ module.exports = function (RED) {
           maxJobsToActivate: numJobs,
           requestTimeout: requestTimeout,
           timeout: parseInt(capability.timeout),
-          type: task,
+          type: task=="bot:release" ? `${task}-${hostname}` : task, // only get bot release jobs for this machine
           worker: hostname,
         };
         if (running < 1) {
