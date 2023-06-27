@@ -112,6 +112,13 @@ module.exports = function (RED) {
         if (!reserverNode) node.status({});
         return;
       }
+      if (!reserved && task == "bot:release") {
+        // don't poll for release task if not reserved
+        return;
+      }
+      if (task=="bot:release"){
+        task = `bot:release-${hostname}`
+      }
 
       let urgentReserveTimeout;
 
@@ -201,13 +208,13 @@ module.exports = function (RED) {
               "availableCompute",
               oneDP(globals.get("availableCompute") + compute)
             );
-            if (task == "bot:release") {
+            if (task.startsWith( "bot:release")) {
               globals.set("reserved", null);
             }
             if (task == "bot:reserve-urgent" && force_one_job) {
               await jobsFinished(completeNode);
             }
-            if (!errorMessage) variables.bot = null;
+            if ((!errorMessage) && (task != "bot:reserve")) variables.bot = null;
             delete variables.botIPs; // stop variables from previous instance overwriting Ipds from this bot
             // if job has been terminated calls below will error so we call them last
             /*
