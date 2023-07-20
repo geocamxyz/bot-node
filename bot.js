@@ -198,6 +198,8 @@ module.exports = function (RED) {
             variables,
             completeNode
           ) {
+            const storedJob = active[job.key];
+            if (!storedJob) return;  // we only want to call done once if the job has already been deleted then done must have been called.
             delete active[job.key];
             setBusyStatus();
             globals.set(
