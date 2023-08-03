@@ -161,7 +161,7 @@ module.exports = function (RED) {
           maxJobsToActivate: numJobs,
           requestTimeout: requestTimeout,
           timeout: parseInt(capability.timeout),
-          type: task=="bot:release" ? `${task}-${hostname}` : task, // only get bot release jobs for this machine
+          type:  `${task}-${hostname}`, // check jobs for this machine first
           worker: hostname,
         };
         if (running < 1) {
@@ -175,6 +175,13 @@ module.exports = function (RED) {
           clearTimeout(urgentReserveTimeout);
         }
         jobs = await botConfig.activateJobs(req);
+        if (jobs.length < 1) {  
+          // no jobs found specifically for this machine so check for general jobs of this type
+          // NB currently this is not optimised for machines being able to handle more that one job of a specific type
+          // ie if box can handle two concurrent script tasks and gets one machine specific one it wont poll for non machine specific one.
+          req.type = task;
+          jobs = await botConfig.activateJobs(req);
+        }
         jobs.forEach((job) => {
           job.since = new Date();
           active[job.key] = job;
@@ -190,7 +197,7 @@ module.exports = function (RED) {
             });
           node.warn(`set Ipaddresses to ${JSON.stringify(ipAddresses)}`);
           globals.set("availableCompute", oneDP(available - compute));
-          if (task.startsWith("bot:reserve")) {
+          if (task == "bot:reserve") {
             reserve(job);
           }
           const done = async function (
@@ -206,7 +213,7 @@ module.exports = function (RED) {
               "availableCompute",
               oneDP(globals.get("availableCompute") + compute)
             );
-            if (task.startsWith( "bot:release")) {
+            if (task == "bot:release") {
               globals.set("reserved", null);
             }
             if (task == "bot:reserve-urgent" && force_one_job) {
