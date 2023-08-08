@@ -86,13 +86,13 @@ module.exports = function (RED) {
     };
 
     const reserve = function (job) {
-      const user = job.variables.username || "Unknown";
+      const user = job.variables.username || job.variables.currentUser || "Unknown";
       globals.set("reserved", user);
       reserverNode = true;
       node.status({
         fill: "blue",
         shape: "dot",
-        text: `${getTime()} reserved by ${user}`,
+        text: `${getTime()} ${job.processInstanceKey} reserved by ${user}`,
       });
       const pidObj = globals.get("PIDs") || {};
       const pids = Object.values(pidObj);
