@@ -5,7 +5,8 @@ module.exports = function (RED) {
   const common = require("./common");
   const isWindows = common.isWindows;
 
-  const requestTimeout = 5000;
+  const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
+  const uniqueTaskPollingInterval = 1000;
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -45,10 +46,7 @@ module.exports = function (RED) {
     const jobsFinished = function (completeNode) {
       return new Promise((resolve, reject) => {
         const interval = setInterval(() => {
-          let available = globals.get("availableCompute");
-          if (available === undefined) {
-            available = 1;
-          }
+          let available =getAvailableCompute();
           if (available >= 1) {
             clearInterval(interval);
             resolve();
@@ -86,7 +84,8 @@ module.exports = function (RED) {
     };
 
     const reserve = function (job) {
-      const user = job.variables.username || job.variables.currentUser || "Unknown";
+      const user =
+        job.variables.username || job.variables.currentUser || "Unknown";
       globals.set("reserved", user);
       reserverNode = true;
       node.status({
@@ -112,7 +111,7 @@ module.exports = function (RED) {
         if (!reserverNode) node.status({});
         return;
       }
-        if (!reserved && task == "bot:release") {
+      if (!reserved && task == "bot:release") {
         return;
       }
 
@@ -124,10 +123,10 @@ module.exports = function (RED) {
         }, 1000 * 100); //attempt a forced reserve in just under 2 minutes at which point other machines should have cleared it if available
       }
 
-      const running = Object.keys(active).length;
+      const running = () => Object.keys(active).length;
       const limit = parseInt(capability.limit);
       const compute = parseFloat(capability.compute);
-      const slots = limit - running;
+      const zbc = botConfig.zbc;
 
       const setBusyStatus = function (resetIfNone = true) {
         if (!reserverNode) {
@@ -148,43 +147,66 @@ module.exports = function (RED) {
         }
       };
 
-      let available = globals.get("availableCompute");
-      if (available === undefined) {
-        available = 1;
+      const getAvailableCompute = function() {
+        let c = globals.get("availableCompute")
+        if (!c && c !== 0) c = 1;
+        return c;
       }
-      const numJobs = force_one_job
-        ? 1
-        : Math.min(Math.floor(available / compute), slots);
-      if (numJobs > 0) {
-        const zbc = botConfig.zbc;
-        req = {
-          maxJobsToActivate: numJobs,
-          requestTimeout: requestTimeout,
-          timeout: parseInt(capability.timeout),
-          type:  `${task}-${hostname}`, // check jobs for this machine first
-          worker: hostname,
-        };
-        if (running < 1) {
+
+      const activateJobs = async function (baseType, force_one = false) {
+        let result = [];
+        const taskTypes = [];
+        let polled = false;
+        for (let priority = 0; priority <= 10; priority++) {
+          taskTypes.push(`${baseType}-${priority}-${hostname}`);
+          taskTypes.push(`${baseType}-${priority}`);
+        }
+        taskTypes.push(`${baseType}-${hostname}`);
+        taskTypes.push(`${baseType}`);
+        while (taskTypes.length > 0) {
+          let available = getAvailableCompute()
+        const numJobs = force_one
+            ? 1
+            : Math.min(Math.floor(available / compute), limit - running());
+          if (numJobs < 1) return polled ? result : false;
           node.status({
             fill: "green",
             shape: "dot",
             text: `${getTime()} Poll: ${numJobs}`,
           });
+          req = {
+            maxJobsToActivate: numJobs,
+            requestTimeout: requestTimeout,
+            timeout: parseInt(capability.timeout),
+            type: taskTypes.shift(),
+            worker: hostname,
+          };
+          polled = true;
+          const jobs = await botConfig.activateJobs(req);
+          jobs.forEach((job) => {
+            active[job.key] = job;
+            job.since = new Date();
+               globals.set(
+              "availableCompute",
+              oneDP(getAvailableCompute() - compute)
+            );
+          });
+          if (jobs.length > 0) {
+            result = result.concat(jobs);
+          }
         }
-        if (task == "bot:reserve-urgent") {
-          clearTimeout(urgentReserveTimeout);
-        }
-        jobs = await botConfig.activateJobs(req);
-        if (jobs.length < 1) {  
-          // no jobs found specifically for this machine so check for general jobs of this type
-          // NB currently this is not optimised for machines being able to handle more that one job of a specific type
-          // ie if box can handle two concurrent script tasks and gets one machine specific one it wont poll for non machine specific one.
-          req.type = task;
-          jobs = await botConfig.activateJobs(req);
-        }
+        return polled ? result : false;
+      };
+
+      if (task == "bot:reserve-urgent") {
+        clearTimeout(urgentReserveTimeout);
+      }
+      console.log(`Checking for jobs of base type ${task}`);
+      const jobs = await activateJobs(task, force_one_job);
+      console.log(`Found ${jobs.length} jobs of base type ${task}`);
+      if (jobs && jobs.length > 0) {
+        setBusyStatus();
         jobs.forEach((job) => {
-          job.since = new Date();
-          active[job.key] = job;
           zbc
             .setVariables({
               elementInstanceKey: job.elementInstanceKey,
@@ -192,11 +214,25 @@ module.exports = function (RED) {
               local: false,
             })
             .catch((err) => {
-              node.warn(`error updating bot variable ${JSON.stringify(err)}`);
+              node.warn(
+                `error updating bot variable at 1 ${JSON.stringify(err)}`
+              );
               console.log("error updating bot variable", err);
             });
-          node.warn(`set Ipaddresses to ${JSON.stringify(ipAddresses)}`);
-          globals.set("availableCompute", oneDP(available - compute));
+          zbc
+            .setVariables({
+              elementInstanceKey: job.elementInstanceKey,
+              variables: { jobStartedAt: Date.now() },
+              local: true,
+            })
+            .catch((err) => {
+              node.warn(
+                `error updating jobStartedAt variable at 2 ${JSON.stringify(
+                  err
+                )}`
+              );
+              console.log("error updating jobStartedAt variable", err);
+            });
           if (task == "bot:reserve") {
             reserve(job);
           }
@@ -206,12 +242,14 @@ module.exports = function (RED) {
             completeNode
           ) {
             const storedJob = active[job.key];
-            if (!storedJob) return;  // we only want to call done once if the job has already been deleted then done must have been called.
+            if (!storedJob) {
+              return false; // we only want to call done once if the job has already been deleted then done must have been called.
+            }
             delete active[job.key];
             setBusyStatus();
             globals.set(
               "availableCompute",
-              oneDP(globals.get("availableCompute") + compute)
+              oneDP(getAvailableCompute() + compute)
             );
             if (task == "bot:release") {
               globals.set("reserved", null);
@@ -219,8 +257,23 @@ module.exports = function (RED) {
             if (task == "bot:reserve-urgent" && force_one_job) {
               await jobsFinished(completeNode);
             }
-            if ((!errorMessage) && (task != "bot:reserve")) variables.bot = null;
+            if (task != "bot:reserve") {
+              await zbc
+                .setVariables({
+                  elementInstanceKey: job.elementInstanceKey,
+                  variables: { bot: null, previousBot: hostname },
+                  local: false,
+                })
+                .catch((err) => {
+                  node.warn(
+                    `error updating bot variable at 3 ${JSON.stringify(err)}`
+                  );
+                  console.log("error updating bot variable", err);
+                });
+            }
+            variables.jobFinishedAt = Date.now();
             delete variables.botIPs; // stop variables from previous instance overwriting Ipds from this bot
+            delete variables.jobStartedAt
             // if job has been terminated calls below will error so we call them last
             /*
             await zbc.setVariables({
@@ -229,13 +282,25 @@ module.exports = function (RED) {
               local: false,
             });
             */
-            await (errorMessage
-              ? zbc.failJob({
-                  jobKey: job.key,
-                  errorMessage: errorMessage,
-                  retries: job.retries - 1,
-                })
-              : zbc.completeJob({ jobKey: job.key, variables: variables }));
+            node.warn(`calling complete with ${JSON.stringify(variables)}`);
+            if (errorMessage) {
+              // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
+              // so lets do two steps
+              await zbc.setVariables({
+                elementInstanceKey: job.elementInstanceKey,
+                variables: variables,
+                local: true,
+              });
+              await zbc.failJob({
+                jobKey: job.key,
+                errorMessage: errorMessage,
+                retries: job.retries - 1,
+                variables: variables,
+              });
+            } else {
+              await zbc.completeJob({ jobKey: job.key, variables: variables });
+            }
+            return true;
           };
           msg = { payload: { job: job, done: done } };
           msg.zeebePayload = msg.payload;
@@ -243,14 +308,16 @@ module.exports = function (RED) {
         });
         setBusyStatus(false);
       } else {
-        if (running < 1) {
+        if (jobs === false) {
+          if (running() > 0){
+            setBusyStatus();
+          } else {
           node.status({
             fill: "grey",
             shape: "ring",
-            text: `${getTime()} busy: ${running}/${limit} ${compute}/${available}`,
+            text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()}`,
           });
-        } else {
-          setBusyStatus();
+          }
         }
       }
     };
@@ -276,7 +343,7 @@ module.exports = function (RED) {
                 text: `${getTime()} ${err}`,
               });
             }),
-          idx * requestTimeout
+          idx * uniqueTaskPollingInterval
         );
       } else {
         node.status({
