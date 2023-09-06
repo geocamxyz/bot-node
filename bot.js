@@ -6,7 +6,7 @@ module.exports = function (RED) {
   const isWindows = common.isWindows;
 
   const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
-  const uniqueTaskPollingInterval = 1000;
+  const uniqueTaskPollingInterval = 2500;
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -46,7 +46,7 @@ module.exports = function (RED) {
     const jobsFinished = function (completeNode) {
       return new Promise((resolve, reject) => {
         const interval = setInterval(() => {
-          let available =getAvailableCompute();
+          let available = getAvailableCompute();
           if (available >= 1) {
             clearInterval(interval);
             resolve();
@@ -147,11 +147,11 @@ module.exports = function (RED) {
         }
       };
 
-      const getAvailableCompute = function() {
-        let c = globals.get("availableCompute")
+      const getAvailableCompute = function () {
+        let c = globals.get("availableCompute");
         if (!c && c !== 0) c = 1;
         return c;
-      }
+      };
 
       const activateJobs = async function (baseType, force_one = false) {
         let result = [];
@@ -164,8 +164,8 @@ module.exports = function (RED) {
         taskTypes.push(`${baseType}-${hostname}`);
         taskTypes.push(`${baseType}`);
         while (taskTypes.length > 0) {
-          let available = getAvailableCompute()
-        const numJobs = force_one
+          let available = getAvailableCompute();
+          const numJobs = force_one
             ? 1
             : Math.min(Math.floor(available / compute), limit - running());
           if (numJobs < 1) return polled ? result : false;
@@ -186,7 +186,7 @@ module.exports = function (RED) {
           jobs.forEach((job) => {
             active[job.key] = job;
             job.since = new Date();
-               globals.set(
+            globals.set(
               "availableCompute",
               oneDP(getAvailableCompute() - compute)
             );
@@ -207,10 +207,11 @@ module.exports = function (RED) {
       if (jobs && jobs.length > 0) {
         setBusyStatus();
         jobs.forEach((job) => {
+          const inputVariableValues = JSON.parse(JSON.stringify(job.variables));
           zbc
             .setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { bot: hostname, botIPs: ipAddresses },
+              variables: { botIPs: ipAddresses },
               local: false,
             })
             .catch((err) => {
@@ -257,40 +258,30 @@ module.exports = function (RED) {
             if (task == "bot:reserve-urgent" && force_one_job) {
               await jobsFinished(completeNode);
             }
-            if (task != "bot:reserve") {
-              await zbc
-                .setVariables({
-                  elementInstanceKey: job.elementInstanceKey,
-                  variables: { bot: null, previousBot: hostname },
-                  local: false,
-                })
-                .catch((err) => {
-                  node.warn(
-                    `error updating bot variable at 3 ${JSON.stringify(err)}`
-                  );
-                  console.log("error updating bot variable", err);
-                });
-            }
-            variables.jobFinishedAt = Date.now();
-            delete variables.botIPs; // stop variables from previous instance overwriting Ipds from this bot
-            delete variables.jobStartedAt
-            // if job has been terminated calls below will error so we call them last
-            /*
+            delete inputVariableValues.botIPs; // stop variables from previous instance overwriting Ipds from this bot
             await zbc.setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { bot: null },
-              local: false,
+              variables: { jobFinishedAt: Date.now() },
+              local: true,
             });
-            */
+            // only update variables that have changed from incoming variables
+            for (const [key, value] of Object.entries(inputVariableValues)) {
+              if (variables[key] && variables[key] === value) {
+                delete variables[key];
+              }
+            }
             node.warn(`calling complete with ${JSON.stringify(variables)}`);
             if (errorMessage) {
               // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
               // so lets do two steps
+              /*  now commented out as this was here to set finished at but we're now doing that on complete as well to force local setting
+              completeJob may be local or global depending on output mappings.
               await zbc.setVariables({
                 elementInstanceKey: job.elementInstanceKey,
                 variables: variables,
                 local: true,
               });
+              */
               await zbc.failJob({
                 jobKey: job.key,
                 errorMessage: errorMessage,
@@ -309,14 +300,14 @@ module.exports = function (RED) {
         setBusyStatus(false);
       } else {
         if (jobs === false) {
-          if (running() > 0){
+          if (running() > 0) {
             setBusyStatus();
           } else {
-          node.status({
-            fill: "grey",
-            shape: "ring",
-            text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()}`,
-          });
+            node.status({
+              fill: "grey",
+              shape: "ring",
+              text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()}`,
+            });
           }
         }
       }
