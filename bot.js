@@ -223,7 +223,7 @@ module.exports = function (RED) {
           zbc
             .setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { jobStartedAt: Date.now() },
+              variables: { jobStartedAt: Date.now(), bot: hostname },
               local: true,
             })
             .catch((err) => {
@@ -261,7 +261,7 @@ module.exports = function (RED) {
             delete inputVariableValues.botIPs; // stop variables from previous instance overwriting Ipds from this bot
             await zbc.setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { jobFinishedAt: Date.now() },
+              variables: { jobFinishedAt: Date.now(), bot: null },
               local: true,
             });
             // only update variables that have changed from incoming variables
