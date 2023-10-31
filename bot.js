@@ -223,7 +223,7 @@ module.exports = function (RED) {
           zbc
             .setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { jobStartedAt: Date.now(), bot: hostname },
+              variables: { jobStartedAt: Date.now(), bot: hostname, processedBy: hostname },
               local: true,
             })
             .catch((err) => {
