@@ -1,6 +1,6 @@
 {
   "name": "bot-node",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "",
   "main": "bot.js",
   "scripts": {
@@ -26,7 +26,9 @@
       "botcheck": "botcheck.js",
       "botconfig": "botconfig.js",
       "botnotify" : "botnotify.js",
-      "botpidscooper" : "botpidscooper.js"
+      "botpidscooper" : "botpidscooper.js",
+      "limit" : "limit.js",
+      "unlimit" : "unlimit.js"
     }
   },
   "dependencies": {

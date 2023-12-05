@@ -1,0 +1,57 @@
+<script type="text/javascript">
+    RED.nodes.registerType('limit',{
+        category: 'bots',
+        color: '#C0DEED',
+        defaults: {
+            name: {value:""},
+            limit: { value: 1, required: true },
+        },
+        inputs:1,
+        outputs:1,
+        icon: "bot.png",
+        label: function() {
+            return this.name||"limit";
+        },
+        paletteLabel: 'limit'
+    });
+</script>
+
+<script type="text/html" data-template-name="limit">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-limit"><i class="fa fa-tag"></i> Limit</label>
+        <input type="number" id="node-input-limit" placeholder="Limit">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="limit">
+    <p>
+        A node that will restrict concurrent flows - eg from a split node.
+    </p>
+
+    <h3>Inputs</h3>
+
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">any</span></dt>
+        <dd>incoming payload is ignored.  Just there for triggering the node.
+        </dd>
+
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Standard output
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">any</span></dt>
+                <dd>Incoming message but only when there is capaccity within the limit otherwise the message will be queued</dd>
+
+            
+            </dl>
+        </li>
+    </ol>
+
+
+</script>
