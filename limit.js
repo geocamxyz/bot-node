@@ -4,25 +4,34 @@ module.exports = function (RED) {
 
     const node = this;
     const limitTo = parseInt(config.limit);
+    const queue = config.queue;
     const globals = node.context().global;
 
     node.on("input", async function (msg) {
-      if (!msg.parts) {
-        node.error(
-          "No msg.parts object found.  Did you use split prior to this node?",
-          msg
-        );
-        return;
-      }
-
       node.limit = function (msg) {
-        const job = msg.parts.id;
+        let job = queue;
+        if (queue.startsWith("msg.")) {
+          const parts = queue.split(".");
+          parts.shift();
+          job = msg;
+          parts.forEach((part) => {
+            job = job[part];
+          });
+        }
+
+        if (!job) {
+          node.error(
+            `No ${queue} object found.  Did you use split prior to this node?`,
+            msg
+          );
+          return;
+        }
+
         const ref = `limit_${job}`;
-        msg.parts.limitNode = node;
 
         let send = false;
         const limit = globals.get(ref) || { running: 0, queued: [] };
-        if (limit.running < limitTo) {
+        if (limit.running < limitTo || limitTo < 1) {
           limit.running += 1;
           send = true;
         } else {
@@ -30,6 +39,15 @@ module.exports = function (RED) {
         }
         globals.set(ref, limit);
         if (send) {
+          if (msg.hasOwnProperty("limit")) {
+            msg.limit = { limit: msg.limit };
+          } // push existing parts to a stack
+          else {
+            msg.limit = {};
+          }
+          msg.limit.id = RED.util.generateId();
+          msg.limit.limitNode = node;
+          msg.limit.queue = ref;
           node.send(msg);
         }
       };

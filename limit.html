@@ -5,6 +5,7 @@
         defaults: {
             name: {value:""},
             limit: { value: 1, required: true },
+            queue: { value: "msg.parts.id", required: true },
         },
         inputs:1,
         outputs:1,
@@ -24,6 +25,10 @@
     <div class="form-row">
         <label for="node-input-limit"><i class="fa fa-tag"></i> Limit</label>
         <input type="number" id="node-input-limit" placeholder="Limit">
+    </div>
+    <div class="form-row">
+        <label for="node-input-queue"><i class="fa fa-tag"></i> Queue</label>
+        <input type="text" id="node-input-queue" placeholder="Queue id - string or msg. for a msg property eg msg.parts.id">
     </div>
 </script>
 

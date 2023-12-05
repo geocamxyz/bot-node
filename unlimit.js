@@ -6,8 +6,14 @@ module.exports = function (RED) {
     const globals = node.context().global;
 
     node.on("input", async function (msg) {
-      const job = msg.parts.id;
-      const ref = `limit_${job}`;
+      if (!msg.limit){
+        node.error(
+          "No msg.limit object found.  Did you use limit prior to this node?",
+          msg
+        );
+      }
+      
+      const ref = msg.limit.queue;
 
       const limit = globals.get(ref);
       limit.running -= 1;
@@ -17,7 +23,12 @@ module.exports = function (RED) {
       }
       globals.set(ref, limit);
       if (next) {
-        msg.parts.limitNode.limit(next);
+        msg.limit.limitNode.limit(next);
+      }
+      if (msg.limit.limit) {
+        msg.limit = msg.limit.limit;
+      } else {
+        delete msg.limit;
       }
       node.send(msg);
     });
