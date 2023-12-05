@@ -14,19 +14,24 @@ module.exports = function (RED) {
         );
         return;
       }
-      const job = msg.parts.id;
-      const ref = `limit_${job}`;
-      msg.parts.limitNode = node;
 
       node.limit = function (msg) {
+        const job = msg.parts.id;
+        const ref = `limit_${job}`;
+        msg.parts.limitNode = node;
+
+        let send = false;
         const limit = globals.get(ref) || { running: 0, queued: [] };
         if (limit.running < limitTo) {
           limit.running += 1;
-          node.send(msg);
+          send = true;
         } else {
           limit.queued.push(msg);
         }
         globals.set(ref, limit);
+        if (send) {
+          node.send(msg);
+        }
       };
 
       node.limit(msg);

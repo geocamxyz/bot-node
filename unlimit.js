@@ -11,11 +11,15 @@ module.exports = function (RED) {
 
       const limit = globals.get(ref);
       limit.running -= 1;
+         let next = null;
       if (limit.queued.length > 0) {
-              msg.parts.limitNode.limit(limit.queued.pop());
+        next = limit.queued.pop();
       }
       globals.set(ref, limit);
-     node.send(msg);
+      if (next) {
+        msg.parts.limitNode.limit(next);
+      }
+      node.send(msg);
     });
   }
 
