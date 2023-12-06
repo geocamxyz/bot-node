@@ -24,6 +24,8 @@ module.exports = function (RED) {
       globals.set(ref, limit);
       if (next) {
         msg.limit.limitNode.limit(next);
+      } else {
+        msg.limit.limitNode.clear();
       }
       if (msg.limit.limit) {
         msg.limit = msg.limit.limit;

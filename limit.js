@@ -8,6 +8,11 @@ module.exports = function (RED) {
     const globals = node.context().global;
 
     node.on("input", async function (msg) {
+
+      node.clear = function () {
+        node.status({}); // don't seem to be able to call status directly from unlimit node so added a function for that
+      }
+
       node.limit = function (msg) {
         let job = queue;
         if (queue.startsWith("msg.")) {
@@ -34,8 +39,18 @@ module.exports = function (RED) {
         if (limit.running < limitTo || limitTo < 1) {
           limit.running += 1;
           send = true;
+          node.status({
+            fill: "green",
+            shape: "dot",
+            text: `${limit.running}`,
+          });
         } else {
           limit.queued.push(msg);
+          node.status({
+            fill: "red",
+            shape: "dot",
+            text: `${limit.running}`,
+          });
         }
         globals.set(ref, limit);
         if (send) {
