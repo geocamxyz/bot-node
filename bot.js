@@ -240,7 +240,8 @@ module.exports = function (RED) {
           const done = async function (
             errorMessage = null,
             variables,
-            completeNode
+            completeNode,
+            retries
           ) {
             const storedJob = active[job.key];
             if (!storedJob) {
@@ -282,10 +283,12 @@ module.exports = function (RED) {
                 local: true,
               });
               */
+             retries = (retries || job.retries) - 1;
+             if (retries < 0) retries = 0
               await zbc.failJob({
                 jobKey: job.key,
                 errorMessage: errorMessage,
-                retries: job.retries - 1,
+                retries: retries,
                 variables: variables,
               });
             } else {

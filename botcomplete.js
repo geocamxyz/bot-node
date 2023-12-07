@@ -11,13 +11,14 @@ module.exports = function (RED) {
       if (payload && payload.done) {
         const error = (payload.job && payload.job.error) || null;
         const variables = payload.job && payload.job.variables;
+        const retries = (payload.job && payload.job.retries) || 1;
         node.warn(
           `about to call done with error ${error}, variables: ${JSON.stringify(
             variables
           )}`
         );
         payload
-          .done(error, variables, node)
+          .done(error, variables, node, retries)
           .then((doneExecuted) => {
             node.warn(
               `payload done ${
