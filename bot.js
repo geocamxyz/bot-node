@@ -6,7 +6,7 @@ module.exports = function (RED) {
   const isWindows = common.isWindows;
 
   const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
-  const uniqueTaskPollingInterval = 2500;
+  const uniqueTaskPollingInterval = 1000;
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -64,7 +64,7 @@ module.exports = function (RED) {
     const getTime = function () {
       const time = new Date().toLocaleString().split(" ")[1];
       const parts = time.split(":");
-      parts.pop();
+      // parts.pop();
       return parts.join(":");
     };
 
