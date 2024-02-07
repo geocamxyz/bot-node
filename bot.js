@@ -287,7 +287,7 @@ module.exports = function (RED) {
              if (retries < 0) retries = 0
               await zbc.failJob({
                 jobKey: job.key,
-                errorMessage: errorMessage,
+                errorMessage: JSON.stringify(errorMessage),
                 retries: retries,
                 variables: variables,
               });
