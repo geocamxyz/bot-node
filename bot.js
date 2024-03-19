@@ -285,7 +285,7 @@ module.exports = function (RED) {
               */
              retries = (retries || job.retries) - 1;
              if (retries < 0) retries = 0;
-             const errMsg = errorMessage.replace(/\W/g,' '); // JSON.stringify(errorMessage);
+             const errMsg =  JSON.stringify(errorMessage);// errorMessage.replace(/\W/g,' '); 
              node.warn(`Failing job with message: ${errMsg}`);
               await zbc.failJob({
                 jobKey: job.key,
