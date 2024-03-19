@@ -277,12 +277,13 @@ module.exports = function (RED) {
               // so lets do two steps
               /*  now commented out as this was here to set finished at but we're now doing that on complete as well to force local setting
               completeJob may be local or global depending on output mappings.
+                      */
               await zbc.setVariables({
                 elementInstanceKey: job.elementInstanceKey,
                 variables: variables,
                 local: true,
               });
-              */
+     
              retries = (retries || job.retries) - 1;
              if (retries < 0) retries = 0;
              const errMsg =  JSON.stringify(errorMessage);// errorMessage.replace(/\W/g,' '); 
@@ -290,7 +291,7 @@ module.exports = function (RED) {
                 jobKey: job.key,
                 errorMessage: errMsg,
                 retries: retries,
-                variables: variables,
+               // variables: variables,
               });
             } else {
               await zbc.completeJob({ jobKey: job.key, variables: variables });
