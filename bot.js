@@ -284,12 +284,14 @@ module.exports = function (RED) {
               });
               */
              retries = (retries || job.retries) - 1;
-             if (retries < 0) retries = 0
+             if (retries < 0) retries = 0;
+             const errMsg = errorMessage.replace(/\W/g,' '); // JSON.stringify(errorMessage);
+             node.warn(`Failing job with message: ${errMsg}`);
               await zbc.failJob({
                 jobKey: job.key,
-                errorMessage: errorMessage.replace(/\W/g, " "),
+                errorMessage: errMsg,
                 retries: retries,
-                variables: variables,
+                // variables: variables,
               });
             } else {
               await zbc.completeJob({ jobKey: job.key, variables: variables });
