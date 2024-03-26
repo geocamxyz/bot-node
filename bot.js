@@ -175,7 +175,9 @@ module.exports = function (RED) {
             text: `${getTime()} Poll: ${numJobs}`,
           });
           req = {
-            maxJobsToActivate: numJobs,
+            maxJobsToActivate: 1, //numJobs, drop polling to 1 job each time
+            // when there are multiple hosts it means there is more likely to be round-robin pick up of jobs
+            // otherwise if 2 jobs of a type are available same host will pull both before another host has a chance to pick up one of them
             requestTimeout: requestTimeout,
             timeout: parseInt(capability.timeout),
             type: taskTypes.shift(),
@@ -274,10 +276,8 @@ module.exports = function (RED) {
             node.warn(`calling complete with ${JSON.stringify(variables)}`);
             if (errorMessage) {
               // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
+              // keep get invalid json error on failjob even through the very next line works correctly
               // so lets do two steps
-              /*  now commented out as this was here to set finished at but we're now doing that on complete as well to force local setting
-              completeJob may be local or global depending on output mappings.
-                      */
               await zbc.setVariables({
                 elementInstanceKey: job.elementInstanceKey,
                 variables: variables,
