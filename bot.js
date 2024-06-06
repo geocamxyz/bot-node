@@ -1,7 +1,9 @@
 module.exports = function (RED) {
   const os = require("os");
+  const fs = require("fs");
   const ZB = require("zeebe-node");
   const exec = require("child_process").exec;
+  const execSync = require("child_process").execSync;
   const common = require("./common");
   const isWindows = common.isWindows;
 
@@ -123,8 +125,13 @@ module.exports = function (RED) {
         }, 1000 * 100); //attempt a forced reserve in just under 2 minutes at which point other machines should have cleared it if available
       }
 
+      let runningOHost = 0;
       const running = () => Object.keys(active).length;
       const limit = parseInt(capability.limit);
+      const hostLimit =
+        capability.host_limit || capability.host_limit == "0"
+          ? parseInt(capability.host_limit)
+          : limit;
       const compute = parseFloat(capability.compute);
       const zbc = botConfig.zbc;
 
@@ -153,49 +160,84 @@ module.exports = function (RED) {
         return c;
       };
 
+      const allocateJobOnHost = function (baseType, hostLimit) {
+        const path = `/tmp/workflow_locks/${baseType}`;
+        if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
+        // console.log("should have made dir", path);
+        const files = fs.readdirSync(path);
+        runningOHost = files.length;
+        const locks = [];
+        if (runningOHost < hostLimit) {
+          for (var i = hostLimit - files.length; i > 0; i--) {
+            const date = execSync('date +%s%N');
+            const trimmed = date.toString().trim();
+            const filename = `${path}/${hostname}-${trimmed}-${i}.lock`;
+            let fd = fs.openSync(filename, "a");
+            fs.closeSync(fd);
+            locks.push(filename);
+          }
+        }
+        return locks;
+      };
+
       const activateJobs = async function (baseType, force_one = false) {
         let result = [];
         const taskTypes = [];
         let polled = false;
-        for (let priority = 0; priority <= 10; priority++) {
-          taskTypes.push(`${baseType}-${priority}-${hostname}`);
-          taskTypes.push(`${baseType}-${priority}`);
-        }
-        taskTypes.push(`${baseType}-${hostname}`);
-        taskTypes.push(`${baseType}`);
-        while (taskTypes.length > 0) {
-          let available = getAvailableCompute();
-          const numJobs = force_one
-            ? 1
-            : Math.min(Math.floor(available / compute), limit - running());
-          if (numJobs < 1) return polled ? result : false;
-          node.status({
-            fill: "green",
-            shape: "dot",
-            text: `${getTime()} Poll: ${numJobs}`,
-          });
-          req = {
-            maxJobsToActivate: 1, //numJobs, drop polling to 1 job each time
-            // when there are multiple hosts it means there is more likely to be round-robin pick up of jobs
-            // otherwise if 2 jobs of a type are available same host will pull both before another host has a chance to pick up one of them
-            requestTimeout: requestTimeout,
-            timeout: parseInt(capability.timeout),
-            type: taskTypes.shift(),
-            worker: hostname,
-          };
-          polled = true;
-          const jobs = await botConfig.activateJobs(req);
-          jobs.forEach((job) => {
-            active[job.key] = job;
-            job.since = new Date();
-            globals.set(
-              "availableCompute",
-              oneDP(getAvailableCompute() - compute)
-            );
-          });
-          if (jobs.length > 0) {
-            result = result.concat(jobs);
+        const locks = allocateJobOnHost(baseType, hostLimit);
+        if (locks.length > 0) {
+          for (let priority = 0; priority <= 10; priority++) {
+            taskTypes.push(`${baseType}-${priority}-${hostname}`);
+            taskTypes.push(`${baseType}-${priority}`);
           }
+          taskTypes.push(`${baseType}-${hostname}`);
+          taskTypes.push(`${baseType}`);
+          while (taskTypes.length > 0) {
+            let available = getAvailableCompute();
+            const numJobs = force_one
+              ? 1
+              : Math.min(
+                  Math.floor(available / compute),
+                  limit - running(),
+                  locks.length
+                );
+            if (numJobs < 1) return polled ? result : false;
+            node.status({
+              fill: "green",
+              shape: "dot",
+              text: `${getTime()} Poll: ${numJobs}`,
+            });
+            req = {
+              maxJobsToActivate: 1, //numJobs, drop polling to 1 job each time
+              // when there are multiple hosts it means there is more likely to be round-robin pick up of jobs
+              // otherwise if 2 jobs of a type are available same host will pull both before another host has a chance to pick up one of them
+              requestTimeout: requestTimeout,
+              timeout: parseInt(capability.timeout),
+              type: taskTypes.shift(),
+              worker: hostname,
+            };
+            polled = true;
+            const jobs = await botConfig.activateJobs(req);
+            jobs.forEach((job) => {
+              job.lock = locks.pop();
+              active[job.key] = job;
+              job.since = new Date();
+              globals.set(
+                "availableCompute",
+                oneDP(getAvailableCompute() - compute)
+              );
+            });
+            if (jobs.length > 0) {
+              result = result.concat(jobs);
+            }
+          }
+
+          locks.forEach((lock) => {
+            // console.log('about to delete lock file in foreach',lock)
+            fs.unlinkSync(lock);
+            // console.log('deleted lock file in foreach',lock)
+          });
+
         }
         return polled ? result : false;
       };
@@ -203,7 +245,7 @@ module.exports = function (RED) {
       if (task == "bot:reserve-urgent") {
         clearTimeout(urgentReserveTimeout);
       }
-      console.log(`Checking for jobs of base type ${task}`);
+      // console.log(`Checking for jobs of base type ${task}`);
       const jobs = await activateJobs(task, force_one_job);
       console.log(`Found ${jobs.length} jobs of base type ${task}`);
       if (jobs && jobs.length > 0) {
@@ -225,7 +267,11 @@ module.exports = function (RED) {
           zbc
             .setVariables({
               elementInstanceKey: job.elementInstanceKey,
-              variables: { jobStartedAt: Date.now(), bot: hostname, processedBy: hostname },
+              variables: {
+                jobStartedAt: Date.now(),
+                bot: hostname,
+                processedBy: hostname,
+              },
               local: true,
             })
             .catch((err) => {
@@ -269,7 +315,10 @@ module.exports = function (RED) {
             });
             // only update variables that have changed from incoming variables
             for (const [key, value] of Object.entries(inputVariableValues)) {
-              if (variables[key] && JSON.stringify(variables[key]) ===  JSON.stringify(value)) {
+              if (
+                variables[key] &&
+                JSON.stringify(variables[key]) === JSON.stringify(value)
+              ) {
                 delete variables[key];
               }
             }
@@ -283,19 +332,23 @@ module.exports = function (RED) {
                 variables: variables,
                 local: true,
               });
-     
-             retries = (retries || job.retries) - 1;
-             if (retries < 0) retries = 0;
-             const errMsg =  JSON.stringify(errorMessage);// errorMessage.replace(/\W/g,' '); 
+
+              retries = (retries || job.retries) - 1;
+              if (retries < 0) retries = 0;
+              const errMsg = JSON.stringify(errorMessage); // errorMessage.replace(/\W/g,' ');
               await zbc.failJob({
                 jobKey: job.key,
                 errorMessage: errMsg,
                 retries: retries,
-               // variables: variables,
+                // variables: variables,
               });
             } else {
               await zbc.completeJob({ jobKey: job.key, variables: variables });
             }
+            
+            // console.log('about to delete lock file in done',job.lock)
+            fs.unlinkSync(job.lock);
+            // console.log('deleted lock file in done',job.lock)
             return true;
           };
           msg = { payload: { job: job, done: done } };
@@ -311,7 +364,7 @@ module.exports = function (RED) {
             node.status({
               fill: "grey",
               shape: "ring",
-              text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()}`,
+              text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()} ${runningOHost}/${hostLimit}`,
             });
           }
         }
