@@ -9,6 +9,8 @@ module.exports = function (RED) {
 
     const node = this;
     const baseUrl = botConfig.pm;
+    const connectionAttemptsToRestartAfter = 60 // at 1 per 10 seconds this is 10 minutes
+    let failureCount = 0;
 
     const extractUsefulIp = (networkInterfaces) => {
       const v4s = [];
@@ -41,18 +43,25 @@ module.exports = function (RED) {
 
     node.on("input", async function (msg) {
       const url = `${baseUrl}?hostname=${machine.hostname}&platform=${machine.platform}&arch=${machine.arch}&address=${machine.address}&release=${machine.release}`;
-     try {
-      const response = await got(url, { method: "GET" }).json();
-      msg.payload = response;
-      node.send(msg);
-      node.status({});
-     } catch (error) {
-        node.error(error);
-            node.status({
-      fill: "red",
-      shape: "dot",
-      text: `${error}`,
-    });
+      try {
+        const response = await got(url, { method: "GET" }).json();
+        msg.payload = response;
+        node.send(msg);
+        node.status({});
+      } catch (error) {
+        failureCount += 1;
+          node.status({
+          fill: "red",
+          shape: "dot",
+          text: `${failureCount}: ${error}`,
+        });
+        if (failureCount > connectionAttemptsToRestartAfter) {
+          node.error(error, msg); // adding message into node error passes it on to catch node which does the restart
+          failureCount = 0;
+        } else {
+          node.error(error);
+        }
+  
       }
     });
   }
