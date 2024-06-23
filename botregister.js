@@ -9,7 +9,7 @@ module.exports = function (RED) {
 
     const node = this;
     const baseUrl = botConfig.pm;
-    const connectionAttemptsToRestartAfter = 60 // at 1 per 10 seconds this is 10 minutes
+    const connectionAttemptsToRestartAfter = 60; // at 1 per 10 seconds this is 10 minutes
     let failureCount = 0;
 
     const extractUsefulIp = (networkInterfaces) => {
@@ -48,9 +48,10 @@ module.exports = function (RED) {
         msg.payload = response;
         node.send(msg);
         node.status({});
+        failureCount += 0;
       } catch (error) {
         failureCount += 1;
-          node.status({
+        node.status({
           fill: "red",
           shape: "dot",
           text: `${failureCount}: ${error}`,
@@ -61,7 +62,6 @@ module.exports = function (RED) {
         } else {
           node.error(error);
         }
-  
       }
     });
   }
