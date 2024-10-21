@@ -9,7 +9,9 @@ module.exports = function (RED) {
 
   const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
   const uniqueTaskPollingInterval = 1000;
-  const totalMemory = parseInt(execSync('grep MemTotal /proc/meminfo | awk \'{print $2}\'').toString().trim());
+  const totalMemory = parseInt(
+    execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim()
+  );
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -170,7 +172,7 @@ module.exports = function (RED) {
         const locks = [];
         if (runningOHost < hostLimit) {
           for (var i = hostLimit - files.length; i > 0; i--) {
-            const date = execSync('date +%s%N');
+            const date = execSync("date +%s%N");
             const trimmed = date.toString().trim();
             const filename = `${path}/${hostname}-${trimmed}-${i}.lock`;
             let fd = fs.openSync(filename, "a");
@@ -217,19 +219,33 @@ module.exports = function (RED) {
               type: taskTypes.shift(),
               worker: hostname,
             };
-            if ((capability.memory) && (!isNaN(totalMemory))) {
-              const memRequired = parseFloat(capability.memory) * req.maxJobsToActivate * 1000000; // covert from GB to KB for each job requests
+            if (capability.memory && !isNaN(totalMemory)) {
+              const memRequired =
+                parseFloat(capability.memory) * req.maxJobsToActivate * 1000000; // covert from GB to KB for each job requests
               const cmd = `grep MemAvailable /proc/meminfo | awk '{print $2}'`;
               const memAvailable = parseInt(execSync(cmd).toString().trim());
-              console.log('memAvailable', memAvailable, 'memRequired', memRequired, 'totalMemory', totalMemory);
+              console.log(
+                "memAvailable",
+                memAvailable,
+                "memRequired",
+                memRequired,
+                "totalMemory",
+                totalMemory
+              );
               const buffer = totalMemory * 0.1;
               if (memAvailable < memRequired + buffer) {
-                            node.status({
-              fill: "red",
-              shape: "dot",
-              text: `Memory: ${Math.round(memRequired / 1000000,2)}GB > ${Math.round((memAvailable + buffer) / 1000000)}GB`,
-            });
+                 console.log("NOT enough memory to poll",memRequired ,buffer,memAvailable)
+                node.status({
+                  fill: "red",
+                  shape: "dot",
+                  text: `Memory: ${Math.round(
+                    memRequired / 1000000,
+                    2
+                  )}GB > ${Math.round((memAvailable + buffer) / 1000000)}GB`,
+                });
                 return false;
+              } else {
+                console.log("enough memory to poll")
               }
             }
             polled = true;
@@ -253,7 +269,6 @@ module.exports = function (RED) {
             fs.unlinkSync(lock);
             // console.log('deleted lock file in foreach',lock)
           });
-
         }
         return polled ? result : false;
       };
@@ -361,7 +376,7 @@ module.exports = function (RED) {
             } else {
               await zbc.completeJob({ jobKey: job.key, variables: variables });
             }
-            
+
             // console.log('about to delete lock file in done',job.lock)
             fs.unlinkSync(job.lock);
             // console.log('deleted lock file in done',job.lock)
