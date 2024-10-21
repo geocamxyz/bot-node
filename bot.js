@@ -9,9 +9,7 @@ module.exports = function (RED) {
 
   const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
   const uniqueTaskPollingInterval = 1000;
-  const totalMemory = parseInt(
-    execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim()
-  );
+  const totalMemory = parseInt(execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim());
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -47,6 +45,8 @@ module.exports = function (RED) {
 
     const active = {};
     let reserverNode = false;
+
+    let statusHasBeenSet = false
 
     const jobsFinished = function (completeNode) {
       return new Promise((resolve, reject) => {
@@ -188,6 +188,7 @@ module.exports = function (RED) {
         const taskTypes = [];
         let polled = false;
         const locks = allocateJobOnHost(baseType, hostLimit);
+        console.log('locks:',locks)
         if (locks.length > 0) {
           for (let priority = 0; priority <= 10; priority++) {
             taskTypes.push(`${baseType}-${priority}-${hostname}`);
@@ -195,6 +196,7 @@ module.exports = function (RED) {
           }
           taskTypes.push(`${baseType}-${hostname}`);
           taskTypes.push(`${baseType}`);
+          console.log('taskTypes',taskTypes)
           while (taskTypes.length > 0) {
             let available = getAvailableCompute();
             const numJobs = force_one
@@ -219,22 +221,14 @@ module.exports = function (RED) {
               type: taskTypes.shift(),
               worker: hostname,
             };
+            console.log('mem:',capability.memory,totalMemory)
             if (capability.memory && !isNaN(totalMemory)) {
               const memRequired =
                 parseFloat(capability.memory) * req.maxJobsToActivate * 1000000; // covert from GB to KB for each job requests
               const cmd = `grep MemAvailable /proc/meminfo | awk '{print $2}'`;
               const memAvailable = parseInt(execSync(cmd).toString().trim());
-              console.log(
-                "memAvailable",
-                memAvailable,
-                "memRequired",
-                memRequired,
-                "totalMemory",
-                totalMemory
-              );
               const buffer = totalMemory * 0.1;
               if (memAvailable < memRequired + buffer) {
-                 console.log("NOT enough memory to poll",memRequired ,buffer,memAvailable)
                 node.status({
                   fill: "red",
                   shape: "dot",
@@ -243,11 +237,11 @@ module.exports = function (RED) {
                     2
                   )}GB > ${Math.round((memAvailable + buffer) / 1000000)}GB`,
                 });
-                return false;
-              } else {
-                console.log("enough memory to poll")
-              }
+                statusHasBeenSet = true
+                req.maxJobsToActivate = 0
+              } 
             }
+            if (req.maxJobsToActivate > 0) {
             polled = true;
             const jobs = await botConfig.activateJobs(req);
             jobs.forEach((job) => {
@@ -261,6 +255,7 @@ module.exports = function (RED) {
             });
             if (jobs.length > 0) {
               result = result.concat(jobs);
+            }
             }
           }
 
@@ -277,6 +272,7 @@ module.exports = function (RED) {
         clearTimeout(urgentReserveTimeout);
       }
       // console.log(`Checking for jobs of base type ${task}`);
+      statusHasBeenSet = false
       const jobs = await activateJobs(task, force_one_job);
       console.log(`Found ${jobs.length} jobs of base type ${task}`);
       if (jobs && jobs.length > 0) {
@@ -392,7 +388,7 @@ module.exports = function (RED) {
           if (running() > 0) {
             setBusyStatus();
           } else {
-            node.status({
+           if (!statusHasBeenSet) node.status({
               fill: "grey",
               shape: "ring",
               text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()} ${runningOHost}/${hostLimit}`,
