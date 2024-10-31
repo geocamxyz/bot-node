@@ -149,7 +149,7 @@ module.exports = function (RED) {
               shape: "dot",
               text: `${getTime()} ${instances.length} running: ${instances.join(
                 ", "
-              )}`,
+              )}`,ra
             });
           } else if (resetIfNone) {
             node.status({});
@@ -166,7 +166,7 @@ module.exports = function (RED) {
       const allocateJobOnHost = function (baseType, hostLimit) {
         const path = `/tmp/workflow_locks/${baseType}`;
         if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
-        // console.log("should have made dir", path);
+        // console.log("should have made dir", path);cat 
         const files = fs.readdirSync(path);
         runningOHost = files.length;
         const locks = [];
@@ -188,7 +188,6 @@ module.exports = function (RED) {
         const taskTypes = [];
         let polled = false;
         const locks = allocateJobOnHost(baseType, hostLimit);
-        console.log('locks:',locks)
         if (locks.length > 0) {
           for (let priority = 0; priority <= 10; priority++) {
             taskTypes.push(`${baseType}-${priority}-${hostname}`);
@@ -196,7 +195,6 @@ module.exports = function (RED) {
           }
           taskTypes.push(`${baseType}-${hostname}`);
           taskTypes.push(`${baseType}`);
-          console.log('taskTypes',taskTypes)
           while (taskTypes.length > 0) {
             let available = getAvailableCompute();
             const numJobs = force_one
@@ -206,7 +204,10 @@ module.exports = function (RED) {
                   limit - running(),
                   locks.length
                 );
-            if (numJobs < 1) return polled ? result : false;
+            if (numJobs < 1) {
+               locks.forEach((lock) => {fs.unlinkSync(lock)});
+              return polled ? result : false;
+            }
             node.status({
               fill: "green",
               shape: "dot",
@@ -221,7 +222,6 @@ module.exports = function (RED) {
               type: taskTypes.shift(),
               worker: hostname,
             };
-            console.log('mem:',capability.memory,totalMemory)
             if (capability.memory && !isNaN(totalMemory)) {
               const memRequired =
                 parseFloat(capability.memory) * req.maxJobsToActivate * 1000000; // covert from GB to KB for each job requests
@@ -259,11 +259,7 @@ module.exports = function (RED) {
             }
           }
 
-          locks.forEach((lock) => {
-            // console.log('about to delete lock file in foreach',lock)
-            fs.unlinkSync(lock);
-            // console.log('deleted lock file in foreach',lock)
-          });
+          locks.forEach((lock) => {fs.unlinkSync(lock)});
         }
         return polled ? result : false;
       };
