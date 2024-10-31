@@ -149,7 +149,7 @@ module.exports = function (RED) {
               shape: "dot",
               text: `${getTime()} ${instances.length} running: ${instances.join(
                 ", "
-              )}`,ra
+              )}`
             });
           } else if (resetIfNone) {
             node.status({});
