@@ -7,9 +7,14 @@ module.exports = function (RED) {
   const common = require("./common");
   const isWindows = common.isWindows;
 
+  const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+
   const requestTimeout = -1; // time to wait for job request in ms or disable long polling if negative
-  const uniqueTaskPollingInterval = 1000;
-  const totalMemory = parseInt(execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim());
+  let priorityInterval = 0;
+  const uniqueTaskPollingInterval = 100;
+  const totalMemory = parseInt(
+    execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim()
+  );
 
   const getV4Ips = function () {
     const nets = os.networkInterfaces();
@@ -46,7 +51,7 @@ module.exports = function (RED) {
     const active = {};
     let reserverNode = false;
 
-    let statusHasBeenSet = false
+    let statusHasBeenSet = false;
 
     const jobsFinished = function (completeNode) {
       return new Promise((resolve, reject) => {
@@ -149,7 +154,7 @@ module.exports = function (RED) {
               shape: "dot",
               text: `${getTime()} ${instances.length} running: ${instances.join(
                 ", "
-              )}`
+              )}`,
             });
           } else if (resetIfNone) {
             node.status({});
@@ -166,7 +171,7 @@ module.exports = function (RED) {
       const allocateJobOnHost = function (baseType, hostLimit) {
         const path = `/tmp/workflow_locks/${baseType}`;
         if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
-        // console.log("should have made dir", path);cat 
+        // console.log("should have made dir", path);cat
         const files = fs.readdirSync(path);
         runningOHost = files.length;
         const locks = [];
@@ -205,7 +210,9 @@ module.exports = function (RED) {
                   locks.length
                 );
             if (numJobs < 1) {
-               locks.forEach((lock) => {fs.unlinkSync(lock)});
+              locks.forEach((lock) => {
+                fs.unlinkSync(lock);
+              });
               return polled ? result : false;
             }
             node.status({
@@ -213,13 +220,14 @@ module.exports = function (RED) {
               shape: "dot",
               text: `${getTime()} Poll: ${numJobs}`,
             });
+            const thisTask = taskTypes.shift();
             req = {
               maxJobsToActivate: 1, //numJobs, drop polling to 1 job each time
               // when there are multiple hosts it means there is more likely to be round-robin pick up of jobs
               // otherwise if 2 jobs of a type are available same host will pull both before another host has a chance to pick up one of them
               requestTimeout: requestTimeout,
               timeout: parseInt(capability.timeout),
-              type: taskTypes.shift(),
+              type: thisTask,
               worker: hostname,
             };
             if (capability.memory && !isNaN(totalMemory)) {
@@ -237,29 +245,34 @@ module.exports = function (RED) {
                     2
                   )}GB > ${Math.round((memAvailable + buffer) / 1000000)}GB`,
                 });
-                statusHasBeenSet = true
-                req.maxJobsToActivate = 0
-              } 
+                statusHasBeenSet = true;
+                req.maxJobsToActivate = 0;
+              }
             }
             if (req.maxJobsToActivate > 0) {
-            polled = true;
-            const jobs = await botConfig.activateJobs(req);
-            jobs.forEach((job) => {
-              job.lock = locks.pop();
-              active[job.key] = job;
-              job.since = new Date();
-              globals.set(
-                "availableCompute",
-                oneDP(getAvailableCompute() - compute)
-              );
-            });
-            if (jobs.length > 0) {
-              result = result.concat(jobs);
+              polled = true;
+              const jobs = await botConfig.activateJobs(req);
+              jobs.forEach((job) => {
+                job.lock = locks.pop();
+                active[job.key] = job;
+                job.since = new Date();
+                globals.set(
+                  "availableCompute",
+                  oneDP(getAvailableCompute() - compute)
+                );
+              });
+              if (jobs.length > 0) {
+                result = result.concat(jobs);
+              }
             }
+            if (!thisTask.endsWith(hostname)) {
+              await sleep(priorityInterval);
             }
           }
 
-          locks.forEach((lock) => {fs.unlinkSync(lock)});
+          locks.forEach((lock) => {
+            fs.unlinkSync(lock);
+          });
         }
         return polled ? result : false;
       };
@@ -268,7 +281,7 @@ module.exports = function (RED) {
         clearTimeout(urgentReserveTimeout);
       }
       // console.log(`Checking for jobs of base type ${task}`);
-      statusHasBeenSet = false
+      statusHasBeenSet = false;
       const jobs = await activateJobs(task, force_one_job);
       console.log(`Found ${jobs.length} jobs of base type ${task}`);
       if (jobs && jobs.length > 0) {
@@ -384,11 +397,12 @@ module.exports = function (RED) {
           if (running() > 0) {
             setBusyStatus();
           } else {
-           if (!statusHasBeenSet) node.status({
-              fill: "grey",
-              shape: "ring",
-              text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()} ${runningOHost}/${hostLimit}`,
-            });
+            if (!statusHasBeenSet)
+              node.status({
+                fill: "grey",
+                shape: "ring",
+                text: `${getTime()} busy: ${running()}/${limit} ${compute}/${getAvailableCompute()} ${runningOHost}/${hostLimit}`,
+              });
           }
         }
       }
@@ -402,6 +416,7 @@ module.exports = function (RED) {
         stored = capabilities.map((c) => c.task_type);
         globals.set("capabilities", stored);
       }
+      priorityInterval = capabilities.length * uniqueTaskPollingInterval;
       const idx = capabilities.findIndex((c) => c["task_type"] === task);
       if (idx >= 0) {
         stored.splice(stored.indexOf(task), 1);
