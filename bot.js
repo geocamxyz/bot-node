@@ -344,22 +344,23 @@ module.exports = function (RED) {
               await jobsFinished(completeNode);
             }
             delete inputVariableValues.botIPs; // stop variables from previous instance overwriting Ipds from this bot
-            await zbc.setVariables({
-              elementInstanceKey: job.elementInstanceKey,
-              variables: { jobFinishedAt: Date.now(), bot: null },
-              local: true,
-            });
-            // only update variables that have changed from incoming variables
-            for (const [key, value] of Object.entries(inputVariableValues)) {
-              if (
-                variables[key] &&
-                JSON.stringify(variables[key]) === JSON.stringify(value)
-              ) {
-                delete variables[key];
-              }
-            }
-            node.warn(`calling complete with ${JSON.stringify(variables)}`);
             try {
+              await zbc.setVariables({
+                elementInstanceKey: job.elementInstanceKey,
+                variables: { jobFinishedAt: Date.now(), bot: null },
+                local: true,
+              });
+              // only update variables that have changed from incoming variables
+              for (const [key, value] of Object.entries(inputVariableValues)) {
+                if (
+                  variables[key] &&
+                  JSON.stringify(variables[key]) === JSON.stringify(value)
+                ) {
+                  delete variables[key];
+                }
+              }
+              node.warn(`calling complete with ${JSON.stringify(variables)}`);
+
               if (errorMessage) {
                 // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
                 // keep get invalid json error on failjob even through the very next line works correctly
