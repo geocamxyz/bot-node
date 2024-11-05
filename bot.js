@@ -359,31 +359,38 @@ module.exports = function (RED) {
               }
             }
             node.warn(`calling complete with ${JSON.stringify(variables)}`);
-            if (errorMessage) {
-              // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
-              // keep get invalid json error on failjob even through the very next line works correctly
-              // so lets do two steps
-              await zbc.setVariables({
-                elementInstanceKey: job.elementInstanceKey,
-                variables: variables,
-                local: true,
-              });
+            try {
+              if (errorMessage) {
+                // I can't seem to get variables to update on a fail job call despite it being a listed argument in proto
+                // keep get invalid json error on failjob even through the very next line works correctly
+                // so lets do two steps
+                await zbc.setVariables({
+                  elementInstanceKey: job.elementInstanceKey,
+                  variables: variables,
+                  local: true,
+                });
 
-              retries = (retries || job.retries) - 1;
-              if (retries < 0) retries = 0;
-              const errMsg = JSON.stringify(errorMessage); // errorMessage.replace(/\W/g,' ');
-              await zbc.failJob({
-                jobKey: job.key,
-                errorMessage: errMsg,
-                retries: retries,
-                // variables: variables,
-              });
-            } else {
-              await zbc.completeJob({ jobKey: job.key, variables: variables });
+                retries = (retries || job.retries) - 1;
+                if (retries < 0) retries = 0;
+                const errMsg = JSON.stringify(errorMessage); // errorMessage.replace(/\W/g,' ');
+                await zbc.failJob({
+                  jobKey: job.key,
+                  errorMessage: errMsg,
+                  retries: retries,
+                  // variables: variables,
+                });
+              } else {
+                await zbc.completeJob({
+                  jobKey: job.key,
+                  variables: variables,
+                });
+              }
+            } catch (err) {
+              // probably job not found - we can ignore
+            } finally {
+              // console.log('about to delete lock file in done',job.lock)
+              fs.unlinkSync(job.lock);
             }
-
-            // console.log('about to delete lock file in done',job.lock)
-            fs.unlinkSync(job.lock);
             // console.log('deleted lock file in done',job.lock)
             return true;
           };
