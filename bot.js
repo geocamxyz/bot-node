@@ -383,7 +383,7 @@ module.exports = function (RED) {
               } else {
                 // dont seem to be able to set global variables on a complete job request - make a separate call
                 await zbc.setVariables({
-                  elementInstanceKey: job.key,
+                  elementInstanceKey: job.elementInstanceKey,
                   variables: variables,
                   local: false,
                 });
