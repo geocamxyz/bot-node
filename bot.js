@@ -394,6 +394,9 @@ module.exports = function (RED) {
               }
             } catch (err) {
               // probably job not found - we can ignore
+              `error updating setting variables or completing job ${JSON.stringify(
+                  err
+                )}`
             } finally {
               // console.log('about to delete lock file in done',job.lock)
               fs.unlinkSync(job.lock);
