@@ -13,7 +13,9 @@ module.exports = function (RED) {
   let priorityInterval = 0;
   const uniqueTaskPollingInterval = 100;
   const totalMemory = parseInt(
-    execSync("grep MemTotal /proc/meminfo | awk '{print $2}'").toString().trim()
+    execSync("grep MemTotal /proc/meminfo | awk '{print $2}'")
+      .toString()
+      .trim(),
   );
 
   const getV4Ips = function () {
@@ -146,14 +148,14 @@ module.exports = function (RED) {
       const setBusyStatus = function (resetIfNone = true) {
         if (!reserverNode) {
           const instances = Object.values(active).map(
-            (v) => `${v.processInstanceKey} ${runTime(v.since)}`
+            (v) => `${v.processInstanceKey} ${runTime(v.since)}`,
           );
           if (instances.length > 0) {
             node.status({
               fill: "grey",
               shape: "dot",
               text: `${getTime()} ${instances.length} running: ${instances.join(
-                ", "
+                ", ",
               )}`,
             });
           } else if (resetIfNone) {
@@ -200,6 +202,7 @@ module.exports = function (RED) {
           }
           taskTypes.push(`${baseType}-${hostname}`);
           taskTypes.push(`${baseType}`);
+          numReported = -1;
           while (taskTypes.length > 0) {
             let available = getAvailableCompute();
             const numJobs = force_one
@@ -207,8 +210,13 @@ module.exports = function (RED) {
               : Math.min(
                   Math.floor(available / compute),
                   limit - running(),
-                  locks.length
+                  locks.length,
                 );
+            if (numReported != numJobs) {
+              msg = { payload: { capability: baseType, slots: numJobs } };
+              numReported = numJobs;
+              node.send([null, msg]);
+            }
             if (numJobs < 1) {
               locks.forEach((lock) => {
                 fs.unlinkSync(lock);
@@ -220,6 +228,7 @@ module.exports = function (RED) {
               shape: "dot",
               text: `${getTime()} Poll: ${numJobs}`,
             });
+
             const thisTask = taskTypes.shift();
             req = {
               maxJobsToActivate: 1, //numJobs, drop polling to 1 job each time
@@ -242,7 +251,7 @@ module.exports = function (RED) {
                   shape: "dot",
                   text: `Memory: ${Math.round(
                     memRequired / 1000000,
-                    2
+                    2,
                   )}GB > ${Math.round((memAvailable + buffer) / 1000000)}GB`,
                 });
                 statusHasBeenSet = true;
@@ -258,7 +267,7 @@ module.exports = function (RED) {
                 job.since = new Date();
                 globals.set(
                   "availableCompute",
-                  oneDP(getAvailableCompute() - compute)
+                  oneDP(getAvailableCompute() - compute),
                 );
               });
               if (jobs.length > 0) {
@@ -273,6 +282,9 @@ module.exports = function (RED) {
           locks.forEach((lock) => {
             fs.unlinkSync(lock);
           });
+        } else {
+           msg = { payload: { capability: baseType, slots: 0 } };
+              node.send([null, msg]);
         }
         return polled ? result : false;
       };
@@ -296,7 +308,7 @@ module.exports = function (RED) {
             })
             .catch((err) => {
               node.warn(
-                `error updating bot variable at 1 ${JSON.stringify(err)}`
+                `error updating bot variable at 1 ${JSON.stringify(err)}`,
               );
               console.log("error updating bot variable", err);
             });
@@ -313,8 +325,8 @@ module.exports = function (RED) {
             .catch((err) => {
               node.warn(
                 `error updating jobStartedAt variable at 2 ${JSON.stringify(
-                  err
-                )}`
+                  err,
+                )}`,
               );
               console.log("error updating jobStartedAt variable", err);
             });
@@ -325,7 +337,7 @@ module.exports = function (RED) {
             errorMessage = null,
             variables,
             completeNode,
-            retries
+            retries,
           ) {
             const storedJob = active[job.key];
             if (!storedJob) {
@@ -335,7 +347,7 @@ module.exports = function (RED) {
             setBusyStatus();
             globals.set(
               "availableCompute",
-              oneDP(getAvailableCompute() + compute)
+              oneDP(getAvailableCompute() + compute),
             );
             if (task == "bot:release") {
               globals.set("reserved", null);
@@ -390,8 +402,8 @@ module.exports = function (RED) {
             } catch (err) {
               // probably job not found - we can ignore
               `error updating setting variables or completing job ${JSON.stringify(
-                  err
-                )}`
+                err,
+              )}`;
             } finally {
               // console.log('about to delete lock file in done',job.lock)
               fs.unlinkSync(job.lock);
@@ -401,7 +413,7 @@ module.exports = function (RED) {
           };
           msg = { payload: { job: job, done: done } };
           msg.zeebePayload = msg.payload;
-          node.send(msg);
+          node.send([msg, null]);
         });
         setBusyStatus(false);
       } else {
@@ -442,7 +454,7 @@ module.exports = function (RED) {
                 text: `${getTime()} ${err}`,
               });
             }),
-          idx * uniqueTaskPollingInterval
+          idx * uniqueTaskPollingInterval,
         );
       } else {
         node.status({
